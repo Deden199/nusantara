@@ -30,3 +30,15 @@ export async function addPool(city, token) {
   });
   return res.json();
 }
+
+export async function overrideResults(city, drawDate, numbers, token) {
+  const res = await fetch(`${API_URL}/admin/pools/${city}/results`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ drawDate, numbers }),
+  });
+  return res.json();
+}

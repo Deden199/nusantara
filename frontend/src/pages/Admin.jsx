@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { adminLogin, addPool } from '../services/api';
+import { adminLogin, addPool, overrideResults } from '../services/api';
 
 export default function Admin() {
   const [token, setToken] = useState('');
   const [city, setCity] = useState('');
+  const [overrideData, setOverrideData] = useState({ city: '', drawDate: '', numbers: '' });
+  const [message, setMessage] = useState('');
   const [form, setForm] = useState({ username: '', password: '' });
 
   const handleLogin = async e => {
@@ -17,8 +19,24 @@ export default function Admin() {
   const handleAdd = async e => {
     e.preventDefault();
     if (!city) return;
-    await addPool(city, token);
-    alert('Kota ditambahkan');
+    try {
+      await addPool(city, token);
+      setMessage('Kota ditambahkan');
+    } catch (err) {
+      setMessage('Gagal menambahkan kota');
+    }
+  };
+
+  const handleOverride = async e => {
+    e.preventDefault();
+    const { city: c, drawDate, numbers } = overrideData;
+    if (!c || !drawDate || !numbers) return;
+    try {
+      await overrideResults(c, drawDate, numbers, token);
+      setMessage('Hasil diperbarui');
+    } catch (err) {
+      setMessage('Gagal memperbarui hasil');
+    }
   };
 
   if (!token) {
@@ -45,6 +63,30 @@ export default function Admin() {
           <input className="border p-2 w-full" placeholder="Nama Kota" value={city} onChange={e => setCity(e.target.value)} />
           <button className="bg-primary text-gold px-4 py-2" type="submit">Tambah Kota</button>
         </form>
+
+        <form onSubmit={handleOverride} className="space-y-2 max-w-sm">
+          <input
+            className="border p-2 w-full"
+            placeholder="Kota"
+            value={overrideData.city}
+            onChange={e => setOverrideData({ ...overrideData, city: e.target.value })}
+          />
+          <input
+            type="datetime-local"
+            className="border p-2 w-full"
+            value={overrideData.drawDate}
+            onChange={e => setOverrideData({ ...overrideData, drawDate: e.target.value })}
+          />
+          <input
+            className="border p-2 w-full"
+            placeholder="Nomor, pisahkan dengan koma"
+            value={overrideData.numbers}
+            onChange={e => setOverrideData({ ...overrideData, numbers: e.target.value })}
+          />
+          <button className="bg-primary text-gold px-4 py-2" type="submit">Update Hasil</button>
+        </form>
+
+        {message && <p className="text-green-600">{message}</p>}
       </main>
       <Footer />
     </div>
