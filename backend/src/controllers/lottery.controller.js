@@ -79,3 +79,92 @@ exports.authMiddleware = (req, res, next) => {
     res.status(401).json({ message: 'Invalid token' });
   }
 };
+exports.logFetchError = async (city, message) => {
+  await prisma.fetchError.create({ data: { city, message } });
+};
+
+/**
+ * GET /api/admin/overrides?limit=10
+ */
+exports.logFetchError = async (city, message) => {
+  await prisma.fetchError.create({ data: { city, message } });
+};
+
+/**
+ * GET /api/admin/overrides?limit=10
+ */
+exports.listOverrides = async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 10;
+  try {
+    const records = await prisma.override.findMany({
+      orderBy: { time: 'desc' },
+      take: limit,
+    });
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * GET /api/admin/stats
+ */
+// controllers/lottery.controller.js
+exports.getStats = async (req, res) => {
+  try {
+    // 1. Total kota unik
+    const cityGroups = await prisma.lotteryResult.groupBy({
+      by: ['city'],
+    });
+    const totalCities = cityGroups.length;
+
+    // 2. Hitung fetch hari ini
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayFetches = await prisma.lotteryResult.count({
+      where: { fetchedAt: { gte: today } },
+    });
+
+    // 3. Hitung error hari ini
+    const fetchErrors = await prisma.fetchError.count({
+      where: { time: { gte: today } },
+    });
+
+    // 4. Waktu override terakhir
+    const lastOverrideRec = await prisma.override.findFirst({
+      orderBy: { time: 'desc' },
+      select: { time: true },
+    });
+    const lastOverrideTime = lastOverrideRec
+      ? lastOverrideRec.time.toISOString()
+      : null;
+
+    // 5. Distribusi fetch per jam hari ini
+    const fetchByHourRaw = await prisma.$queryRaw`
+      SELECT
+        EXTRACT(HOUR FROM "fetchedAt")::int AS hour,
+        COUNT(*) AS count
+      FROM "LotteryResult"
+      WHERE "fetchedAt" >= ${today}
+      GROUP BY hour
+      ORDER BY hour
+    `;
+
+    // Convert BigInt -> Number
+    const fetchByHour = fetchByHourRaw.map(row => ({
+      hour: Number(row.hour),
+      count: Number(row.count),
+    }));
+
+    return res.json({
+      totalCities,
+      todayFetches,
+      fetchErrors,
+      lastOverrideTime,
+      fetchByHour,
+    });
+  } catch (err) {
+    console.error('[getStats] Error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
