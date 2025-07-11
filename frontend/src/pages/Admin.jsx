@@ -1,0 +1,203 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import Header from '../components/HeaderAdmin';
+import Sidebar from '../components/Sidebar';
+import {
+  fetchPools,
+  fetchStats,
+  fetchRecentOverrides,
+  addPool,
+  overrideResults,
+} from '../services/api';
+
+export default function Admin() {
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+
+  const [stats, setStats] = useState(null);
+  const [pools, setPools] = useState([]);
+  const [overrides, setOverrides] = useState([]);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [newCity, setNewCity] = useState('');
+  const [overrideData, setOverrideData] = useState({ city: '', drawDate: '', numbers: '' });
+  const [message, setMessage] = useState({ text: '', type: '' });
+
+  // Redirect to login if no token
+  useEffect(() => {
+    if (!token) navigate('/login', { replace: true });
+  }, [token, navigate]);
+
+  // Fetch admin data
+  useEffect(() => {
+    if (!token) return;
+    fetchStats(token)
+      .then(data => setStats(data))
+      .catch(err => console.error(err));
+    fetchPools(token)
+      .then(data => setPools(data))
+      .catch(err => console.error(err));
+    fetchRecentOverrides(token)
+      .then(data => setOverrides(Array.isArray(data) ? data : []))
+      .catch(err => console.error(err));
+  }, [token]);
+
+  const handleAdd = async e => {
+    e.preventDefault();
+    if (!newCity.trim()) return;
+    try {
+      await addPool(newCity, token);
+      setMessage({ text: `Kota “${newCity}” ditambahkan`, type: 'success' });
+      setNewCity('');
+      const updated = await fetchPools(token);
+      setPools(updated);
+    } catch (err) {
+      setMessage({ text: err.message || 'Gagal menambahkan kota', type: 'error' });
+    }
+  };
+
+  const handleOverride = async e => {
+    e.preventDefault();
+    const { city, drawDate, numbers } = overrideData;
+    if (!city || !drawDate || !numbers.trim()) return;
+    try {
+      await overrideResults(city, drawDate, numbers, token);
+      setMessage({ text: `Hasil ${city} diperbarui`, type: 'success' });
+      setOverrideData({ city: '', drawDate: '', numbers: '' });
+      const recs = await fetchRecentOverrides(token);
+      setOverrides(Array.isArray(recs) ? recs : []);
+    } catch (err) {
+      setMessage({ text: err.message || 'Gagal override', type: 'error' });
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-100">
+      <Sidebar active={activeTab} onSelect={setActiveTab} />
+      <div className="flex-1 flex flex-col">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6">
+          {message.text && (
+            <div className={`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}> {message.text} </div>
+          )}
+          {activeTab === 'dashboard' && stats && (
+            <>
+              {/* Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <Card title="Total Kota" value={stats.totalCities} />
+                <Card title="Fetch Hari Ini" value={stats.todayFetches} />
+                <Card title="Error Fetch" value={stats.fetchErrors} highlight />
+                <Card title="Override Terakhir" value={stats.lastOverrideTime} />
+              </div>
+              {/* Chart */}
+              <div className="bg-white rounded-lg shadow p-6 mb-8">
+                <h4 className="text-lg font-semibold mb-4">Distribusi Fetch per Jam</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={stats.fetchByHour}>
+                    <XAxis dataKey="hour" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#3182CE" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Override Table */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h4 className="text-lg font-semibold mb-4">Riwayat Override</h4>
+                <OverrideTable data={overrides} />
+              </div>
+            </>
+          )}
+          {activeTab === 'add' && (
+            <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
+              <h4 className="text-xl font-semibold mb-4">Tambah Kota Baru</h4>
+              <form onSubmit={handleAdd} className="space-y-4">
+                <input
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                  placeholder="Nama kota"
+                  value={newCity}
+                  onChange={e => setNewCity(e.target.value)}
+                />
+                <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Tambah </button>
+              </form>
+            </div>
+          )}
+          {activeTab === 'override' && (
+            <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
+              <h4 className="text-xl font-semibold mb-4">Override Hasil Undian</h4>
+              <form onSubmit={handleOverride} className="space-y-4">
+                <select
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                  value={overrideData.city}
+                  onChange={e => setOverrideData({ ...overrideData, city: e.target.value })}
+                >
+                  <option value="">Pilih Kota</option>
+                  {pools.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                  value={overrideData.drawDate}
+                  onChange={e => setOverrideData({ ...overrideData, drawDate: e.target.value })}
+                />
+                <input
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                  placeholder="Nomor baru (03,12,27,45)"
+                  value={overrideData.numbers}
+                  onChange={e => setOverrideData({ ...overrideData, numbers: e.target.value })}
+                />
+                <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Update </button>
+              </form>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, value, highlight }) {
+  return (
+    <div className={`bg-white rounded-lg shadow p-4 ${highlight ? 'text-red-600' : ''}`}>
+      <h4 className="text-sm text-gray-500">{title}</h4>
+      <p className="text-2xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function OverrideTable({ data }) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return <p className="text-center py-4 text-gray-500">Belum ada override.</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full">
+        <thead>
+          <tr className="bg-gray-50">
+            {['Kota','Waktu','Nomor Lama','Nomor Baru','Admin'].map(h => (
+              <th key={h} className="px-4 py-2 text-left text-sm font-medium text-gray-600">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((o,i) => (
+            <tr key={i} className={i%2===0 ? 'bg-white' : 'bg-gray-50'}>
+              <td className="px-4 py-2">{o.city}</td>
+              <td className="px-4 py-2">{new Date(o.time).toLocaleString('id-ID')}</td>
+              <td className="px-4 py-2">{o.oldNumbers}</td>
+              <td className="px-4 py-2">{o.newNumbers}</td>
+              <td className="px-4 py-2">{o.adminUsername}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

@@ -1,0 +1,16 @@
+# ignore node modules & git
+node_modules
+.git
+
+# ignore env & logs
+.env
+*.log
+
+# ignore build artifacts
+dist
+build
+coverage
+
+# ignore Prisma migrations (dan db file jika ada)
+prisma/migrations
+prisma/dev.db

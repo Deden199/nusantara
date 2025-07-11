@@ -1,0 +1,139 @@
+import { useEffect, useState } from 'react';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import { fetchAllHistory, fetchStats } from '../services/api';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+
+export default function StatsPage() {
+  const [history, setHistory] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [filterCity, setFilterCity] = useState('');
+  const [cities, setCities] = useState([]);
+
+  useEffect(() => {
+    fetchStats().then(setStats).catch(console.error);
+    fetchAllHistory()
+      .then(data => {
+        setHistory(data);
+        setCities(Array.from(new Set(data.map(item => item.city))).sort());
+      })
+      .catch(console.error);
+  }, []);
+
+  const displayed = filterCity ? history.filter(item => item.city === filterCity) : history;
+
+  return (
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <Header />
+      {/* Box container */}
+      <div className="flex-grow flex justify-center items-start py-16">
+        <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden">
+          <main className="px-8 py-12 space-y-12">
+            {/* Title */}
+            <div className="text-center">
+              <h1 className="text-4xl font-extrabold text-primary mb-2">Statistik & Riwayat Nusantara Pool</h1>
+              <p className="text-gray-600">Pantau data undian dan histori nomor dengan tampilan interaktif dalam tampilan boxed.</p>
+            </div>
+
+            {/* Overview Cards */}
+            {stats && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card title="Total Kota" value={stats.totalCities} color="bg-indigo-200" />
+                <Card title="Undian Hari Ini" value={stats.todayFetches} color="bg-green-200" />
+                <Card title="Total History" value={history.length} color="bg-pink-200" />
+              </div>
+            )}
+
+            {/* Trend Chart */}
+            {stats?.fetchByHour && (
+              <section className="bg-gray-50 rounded-2xl p-6">
+                <h2 className="text-xl font-semibold mb-4">Trend Fetch per Jam (Hari Ini)</h2>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={stats.fetchByHour} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '6px' }} />
+                    <Line type="monotone" dataKey="count" stroke="#6366F1" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </section>
+            )}
+
+            {/* Filter Box */}
+            <section className="flex justify-end">
+              <div className="bg-white p-3 rounded-xl shadow flex items-center space-x-3">
+                <label className="text-gray-700 font-medium">Filter Kota:</label>
+                <select
+                  value={filterCity}
+                  onChange={e => setFilterCity(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-1 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">Semua Kota</option>
+                  {cities.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </section>
+
+            {/* History Table */}
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Riwayat Undian</h2>
+              <div className="bg-white rounded-2xl shadow divide-y divide-gray-200">
+                <div className="grid grid-cols-3 bg-gray-100 px-6 py-3 font-medium text-gray-700 uppercase text-sm">
+                  <div>Kota</div>
+                  <div>Tanggal Draw</div>
+                  <div>Nomor</div>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {displayed.map((item, idx) => {
+                    const nums = Array.isArray(item.numbers)
+                      ? item.numbers
+                      : typeof item.numbers === 'string'
+                        ? item.numbers.split(/[,\s]+/) : [];
+                    return (
+                      <div
+                        key={idx}
+                        className={
+                          `grid grid-cols-3 px-6 py-4 items-center text-sm ${
+                            idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`
+                        }
+                      >
+                        <div className="text-gray-800 font-medium">{item.city}</div>
+                        <div className="text-gray-600">
+                          {new Date(item.drawDate).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {nums.map((num, i) => (
+                            <div
+                              key={i}
+                              className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold"
+                            >
+                              {String(num).padStart(2, '0')}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          </main>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+function Card({ title, value, color }) {
+  return (
+    <div className={`${color} rounded-xl p-4 flex flex-col items-center`}>
+      <p className="text-gray-700 uppercase tracking-wide mb-1 text-xs">{title}</p>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+    </div>
+  );
+}
