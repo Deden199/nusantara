@@ -1,0 +1,45 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Model untuk menyimpan hasil undian tiap kota dan tanggal
+model LotteryResult {
+  id         Int      @id @default(autoincrement())
+  city       String
+  drawDate   DateTime
+  numbers    String
+  fetchedAt  DateTime @default(now())   // timestamp saat fetch otomatis
+  createdAt  DateTime @default(now())
+
+  @@unique([city, drawDate], name: "city_drawDate")
+}
+
+/// Model untuk mencatat riwayat override manual oleh admin
+model Override {
+  id            Int      @id @default(autoincrement())
+  city          String
+  time          DateTime @default(now())   // timestamp override
+  oldNumbers    String                         
+  newNumbers    String
+  adminUsername String                         
+
+  @@index([time])                           // untuk query terbaru
+}
+
+/// Model untuk log error saat fetch otomatis
+model FetchError {
+  id      Int      @id @default(autoincrement())
+  city    String
+  time    DateTime @default(now())
+  message String
+
+  @@index([time])
+}

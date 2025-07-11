@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nusantara
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://postgres.houtnquxiuadctibqutl:bogor199@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+      JWT_SECRET: supersecret
+      PORT: 4000
+    ports:
+      - '4000:4000'
+    depends_on:
+      - db
+  frontend:
+    build: ./frontend
+    ports:
+      - '3000:80'
+    depends_on:
+      - backend
+volumes:
+  db_data:
