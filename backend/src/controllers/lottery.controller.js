@@ -28,6 +28,17 @@ exports.latestByCity = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.deletePool = async (req, res) => {
+  const { city } = req.params;
+  try {
+    await prisma.override.deleteMany({ where: { city } });
+    await prisma.fetchError.deleteMany({ where: { city } });
+    const result = await prisma.lotteryResult.deleteMany({ where: { city } });
+    res.json({ count: result.count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 exports.addPool = async (req, res) => {
   const { city } = req.body;
