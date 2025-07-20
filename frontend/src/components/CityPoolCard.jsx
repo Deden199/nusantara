@@ -101,11 +101,6 @@ export default function CityPoolCard({
             }
           </div>
         </div>
-
-        {/* Footer Timestamp */}
-        <p className="text-center text-xs text-gray-300">
-          Terakhir: <span className="font-medium text-white">{formattedTime}</span> WIB
-        </p>
       </div>
     </div>
   );
