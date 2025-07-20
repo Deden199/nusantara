@@ -41,8 +41,8 @@ export default function Admin() {
     secondPrize: '',
     thirdPrize: '',
   });
-      const [schedules, setSchedules] = useState([]);
-  const [scheduleForm, setScheduleForm] = useState({ city: '', drawTime: '' });
+  const [schedules, setSchedules] = useState([]);
+  const [scheduleForm, setScheduleForm] = useState({ city: '', drawTime: '', closeTime: '' });
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // Redirect to login if no token
@@ -80,20 +80,20 @@ export default function Admin() {
       setMessage({ text: err.message || 'Gagal menambahkan kota', type: 'error' });
     }
   };
- const handleScheduleSave = async e => {
-    e.preventDefault();
-      const { city, drawTime } = scheduleForm;
-    if (!city || !drawTime) return;
+const handleScheduleSave = async e => {
+  e.preventDefault();
+      const { city, drawTime, closeTime } = scheduleForm;
+    if (!city || !drawTime || !closeTime) return;
     try {
       const exists = schedules.some(s => s.city === city);
       if (exists) {
-        await updateSchedule(city, drawTime, token);
+        await updateSchedule(city, drawTime, closeTime, token);
       } else {
-        await createSchedule(city, drawTime, token);
+        await createSchedule(city, drawTime, closeTime, token);
       }
       const updated = await fetchSchedules(token);
       setSchedules(Array.isArray(updated) ? updated : []);
-      setScheduleForm({ city: '', drawTime: '' });
+      setScheduleForm({ city: '', drawTime: '', closeTime: '' });
       setMessage({ text: 'Jadwal tersimpan', type: 'success' });
     } catch (err) {
       setMessage({ text: err.message || 'Gagal menyimpan jadwal', type: 'error' });
@@ -220,6 +220,14 @@ export default function Admin() {
                   </select>
                   <input
                     type="time"
+                                        placeholder="Tutup"
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                    value={scheduleForm.closeTime}
+                    onChange={e => setScheduleForm({ ...scheduleForm, closeTime: e.target.value })}
+                  />
+                  <input
+                    type="time"
+                    placeholder="Undian"
                     className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
                     value={scheduleForm.drawTime}
                     onChange={e => setScheduleForm({ ...scheduleForm, drawTime: e.target.value })}
@@ -354,7 +362,7 @@ function ScheduleTable({ data, onDelete }) {
       <table className="min-w-full">
         <thead>
           <tr className="bg-gray-50">
-            {['Kota', 'Next Draw', ''].map(h => (
+            {['Kota', 'Tutup', 'Undian', ''].map(h => (
               <th key={h} className="px-4 py-2 text-left text-sm font-medium text-gray-600">
                 {h}
               </th>
@@ -365,9 +373,8 @@ function ScheduleTable({ data, onDelete }) {
           {data.map((s, i) => (
             <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
               <td className="px-4 py-2">{s.city}</td>
-              <td className="px-4 py-2">
-                {s.drawTime}
-              </td>
+              <td className="px-4 py-2">{s.closeTime}</td>
+              <td className="px-4 py-2">{s.drawTime}</td>
               <td className="px-4 py-2">
                 <button
                   onClick={() => onDelete(s.city)}

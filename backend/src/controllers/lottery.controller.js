@@ -66,6 +66,14 @@ exports.addPool = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.publicSchedules = async (req, res) => {
+  try {
+    const schedules = await prisma.schedule.findMany({ orderBy: { city: 'asc' } });
+    res.json(schedules);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 exports.overrideResults = async (req, res) => {
   const { city } = req.params;
@@ -100,7 +108,16 @@ exports.overrideResults = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
 function jakartaDate(input) {
+    // When called without argument, return current time in Asia/Jakarta
+  if (input === undefined) {
+    const nowStr = new Date().toLocaleString('en-US', {
+      timeZone: 'Asia/Jakarta',
+    });
+    return new Date(nowStr);
+  }
   // input dari <input type="datetime-local"> seperti "2025-07-21T04:55"
   const [datePart, timePart] = (input || '').split('T');
   // jika format tidak sesuai, fallback ke waktu saat ini
@@ -244,10 +261,12 @@ exports.listSchedules = async (req, res) => {
 };
 
 exports.createSchedule = async (req, res) => {
-  const { city, drawTime } = req.body;
-  if (!city || !drawTime) return res.status(400).json({ message: 'city and drawTime required' });
+  const { city, drawTime, closeTime } = req.body;
+  if (!city || !drawTime || !closeTime) {
+    return res.status(400).json({ message: 'city, drawTime and closeTime required' });
+  }
   try {
-    const schedule = await prisma.schedule.create({ data: { city, drawTime } });
+    const schedule = await prisma.schedule.create({ data: { city, drawTime, closeTime } });
     res.json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -256,10 +275,10 @@ exports.createSchedule = async (req, res) => {
 
 exports.updateSchedule = async (req, res) => {
   const { city } = req.params;
-  const { drawTime } = req.body;
-  if (!drawTime) return res.status(400).json({ message: 'drawTime required' });
+  const { drawTime, closeTime } = req.body;
+  if (!drawTime && !closeTime) return res.status(400).json({ message: 'drawTime or closeTime required' });
   try {
-    const schedule = await prisma.schedule.update({ where: { city }, data: { drawTime } });
+    const schedule = await prisma.schedule.update({ where: { city }, data: { drawTime, closeTime } });
     res.json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });

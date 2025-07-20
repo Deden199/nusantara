@@ -60,7 +60,10 @@ export async function fetchRecentOverrides(token, limit = 10) {
   });
   return res.json();
 }
-
+export async function fetchPublicSchedules() {
+  const res = await fetch(`${API_URL}/schedules`);
+  return res.json();
+}
 // Dashboard Stats
 export async function fetchStats(token) {
   const res = await fetch(`${API_URL}/admin/stats`, {
@@ -76,26 +79,26 @@ export async function fetchSchedules(token) {
   return res.json();
 }
 
-export async function createSchedule(city, drawTime, token) {
+export async function createSchedule(city, drawTime, closeTime, token) {
   const res = await fetch(`${API_URL}/admin/schedules`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ city, drawTime }),
+    body: JSON.stringify({ city, drawTime, closeTime }),
   });
   return res.json();
 }
 
-export async function updateSchedule(city, drawTime, token) {
+export async function updateSchedule(city, drawTime, closeTime, token) {
   const res = await fetch(`${API_URL}/admin/schedules/${city}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ drawTime }),
+    body: JSON.stringify({ drawTime, closeTime }),
   });
   return res.json();
 }

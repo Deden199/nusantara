@@ -7,6 +7,7 @@ import Login from './pages/Login';      // baru
 import Admin from './pages/Admin';
 import Stats from './pages/StatsPage';
 import Lucky from './pages/LuckyNumberPage';
+import Schedule from './pages/SchedulePage';
 
 const requireAuth = (Component) => {
   const token = localStorage.getItem('token');
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/login" element={<Login />} />
 <Route path="/stats" element={<Stats />} />
 <Route path="/lucky" element={<Lucky />} />
+        <Route path="/schedule" element={<Schedule />} />
 
         {/* Protected Admin */}
         <Route path="/admin" element={requireAuth(Admin)} />
