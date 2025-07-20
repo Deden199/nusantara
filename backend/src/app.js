@@ -4,7 +4,6 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const routes = require('./routes/lottery.routes');
-const { run } = require('./cron/fetchResults');
 
 const app = express();
 const server = http.createServer(app);
@@ -34,8 +33,7 @@ app.use(express.json());
 // API routes
 app.use('/api', routes);
 
-// Schedule initial fetch and recurring jobs
-run();
+
 
 // Start server
 const PORT = process.env.PORT || 4000;
