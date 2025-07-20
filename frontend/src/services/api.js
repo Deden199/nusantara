@@ -64,6 +64,45 @@ export async function fetchStats(token) {
   });
   return res.json();
 }
+// Schedule management
+export async function fetchSchedules(token) {
+  const res = await fetch(`${API_URL}/admin/schedules`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+export async function createSchedule(city, nextDraw, token) {
+  const res = await fetch(`${API_URL}/admin/schedules`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ city, nextDraw }),
+  });
+  return res.json();
+}
+
+export async function updateSchedule(city, nextDraw, token) {
+  const res = await fetch(`${API_URL}/admin/schedules/${city}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ nextDraw }),
+  });
+  return res.json();
+}
+
+export async function deleteSchedule(city, token) {
+  const res = await fetch(`${API_URL}/admin/schedules/${city}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+}
 export async function fetchAllHistory() {
   const res = await fetch(`${API_URL}/history`);
   return res.json();

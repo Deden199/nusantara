@@ -111,7 +111,7 @@ export default function StatsPage() {
                               key={i}
                               className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold"
                             >
-                              {String(num).padStart(2, '0')}
+                              {String(num)}
                             </div>
                           ))}
                         </div>

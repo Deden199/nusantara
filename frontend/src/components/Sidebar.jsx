@@ -1,9 +1,11 @@
-import { Home, PlusCircle, RefreshCcw } from 'lucide-react';
+import { Home, PlusCircle, RefreshCcw, Calendar } from 'lucide-react';
 
 const menuItems = [
   { key: 'dashboard', name: 'Dashboard', icon: Home },
   { key: 'add',       name: 'Tambah Kota', icon: PlusCircle },
-  { key: 'override',  name: 'Override Hasil', icon: RefreshCcw },
+  { key: 'override',  name: 'Tentukan Hasil', icon: RefreshCcw },
+  { key: 'schedule',  name: 'Jadwal', icon: Calendar },
+
 ];
 
 export default function Sidebar({ active, onSelect }) {

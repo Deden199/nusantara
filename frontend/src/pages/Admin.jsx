@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+
 import {
   BarChart,
   Bar,
@@ -16,6 +18,10 @@ import {
   fetchRecentOverrides,
   addPool,
   overrideResults,
+  fetchSchedules,
+  createSchedule,
+  updateSchedule,
+  deleteSchedule,deletePool
 } from '../services/api';
 
 export default function Admin() {
@@ -24,10 +30,13 @@ export default function Admin() {
 
   const [stats, setStats] = useState(null);
   const [pools, setPools] = useState([]);
+  
   const [overrides, setOverrides] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [newCity, setNewCity] = useState('');
   const [overrideData, setOverrideData] = useState({ city: '', drawDate: '', numbers: '' });
+    const [schedules, setSchedules] = useState([]);
+  const [scheduleForm, setScheduleForm] = useState({ city: '', nextDraw: '' });
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // Redirect to login if no token
@@ -47,6 +56,9 @@ export default function Admin() {
     fetchRecentOverrides(token)
       .then(data => setOverrides(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
+          fetchSchedules(token)
+      .then(data => setSchedules(Array.isArray(data) ? data : []))
+      .catch(err => console.error(err));
   }, [token]);
 
   const handleAdd = async e => {
@@ -62,7 +74,36 @@ export default function Admin() {
       setMessage({ text: err.message || 'Gagal menambahkan kota', type: 'error' });
     }
   };
+  
+ const handleScheduleSave = async e => {
+    e.preventDefault();
+    const { city, nextDraw } = scheduleForm;
+    if (!city || !nextDraw) return;
+    try {
+      const exists = schedules.some(s => s.city === city);
+      if (exists) {
+        await updateSchedule(city, nextDraw, token);
+      } else {
+        await createSchedule(city, nextDraw, token);
+      }
+      const updated = await fetchSchedules(token);
+      setSchedules(Array.isArray(updated) ? updated : []);
+      setScheduleForm({ city: '', nextDraw: '' });
+      setMessage({ text: 'Jadwal tersimpan', type: 'success' });
+    } catch (err) {
+      setMessage({ text: err.message || 'Gagal menyimpan jadwal', type: 'error' });
+    }
+  };
 
+  const handleDeleteSchedule = async city => {
+    try {
+      await deleteSchedule(city, token);
+      const updated = await fetchSchedules(token);
+      setSchedules(Array.isArray(updated) ? updated : []);
+    } catch (err) {
+      setMessage({ text: err.message || 'Gagal menghapus jadwal', type: 'error' });
+    }
+  };
   const handleOverride = async e => {
     e.preventDefault();
     const { city, drawDate, numbers } = overrideData;
@@ -126,8 +167,36 @@ export default function Admin() {
                   onChange={e => setNewCity(e.target.value)}
                 />
                 <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Tambah </button>
-              </form>
-            </div>
+             <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Update </button>
+            </form>
+          </div>
+          )}
+          {activeTab === 'schedule' && (
+            <div className="space-y-8">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h4 className="text-lg font-semibold mb-4">Daftar Jadwal</h4>
+                <ScheduleTable data={schedules} onDelete={handleDeleteSchedule} />
+              </div>
+              <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
+                <h4 className="text-xl font-semibold mb-4">Tambah / Update Jadwal</h4>
+                <form onSubmit={handleScheduleSave} className="space-y-4">
+                  <select
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                    value={scheduleForm.city}
+                    onChange={e => setScheduleForm({ ...scheduleForm, city: e.target.value })}
+                  >
+                    <option value="">Pilih Kota</option>
+                    {pools.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <input
+                    type="datetime-local"
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                    value={scheduleForm.nextDraw}
+                    onChange={e => setScheduleForm({ ...scheduleForm, nextDraw: e.target.value })}
+                  />
+                  <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Simpan </button>
+                </form>
+              </div>            </div>
           )}
           {activeTab === 'override' && (
             <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
@@ -193,8 +262,46 @@ function OverrideTable({ data }) {
               <td className="px-4 py-2">{new Date(o.time).toLocaleString('id-ID')}</td>
               <td className="px-4 py-2">{o.oldNumbers}</td>
               <td className="px-4 py-2">{o.newNumbers}</td>
-              <td className="px-4 py-2">{o.adminUsername}</td>
-            </tr>
+      <td className="px-4 py-2">{o.adminUsername}</td>
+    </tr>
+  ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ScheduleTable({ data, onDelete }) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return <p className="text-center py-4 text-gray-500">Belum ada jadwal.</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full">
+        <thead>
+          <tr className="bg-gray-50">
+            {['Kota', 'Next Draw', ''].map(h => (
+              <th key={h} className="px-4 py-2 text-left text-sm font-medium text-gray-600">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((s, i) => (
+            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              <td className="px-4 py-2">{s.city}</td>
+              <td className="px-4 py-2">
+                {new Date(s.nextDraw).toLocaleString('id-ID')}
+              </td>
+              <td className="px-4 py-2">
+                <button
+                  onClick={() => onDelete(s.city)}
+                  className="text-red-600 hover:underline"
+                >
+                  Hapus
+                </button>
+              </td>            </tr>
           ))}
         </tbody>
       </table>

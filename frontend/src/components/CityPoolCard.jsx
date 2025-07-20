@@ -55,7 +55,7 @@ export default function CityPoolCard({ city, drawDate, numbers }) {
                 transition-all duration-500 delay-${i * 100}
               `}
             >
-              {String(n).padStart(2, '0')}
+{String(n)}
             </div>
           )) : (
             <span className="text-gray-300 italic">– Belum ada –</span>
