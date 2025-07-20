@@ -23,8 +23,8 @@ exports.latestByCity = async (req, res) => {
       orderBy: { drawDate: 'desc' },
     });
     if (!result) return res.status(404).json({ message: 'Not found' });
-    res.json(result);
-  } catch (err) {
+    const schedule = await prisma.schedule.findUnique({ where: { city } });
+    res.json({ ...result, nextDraw: schedule?.nextDraw || null });  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
@@ -195,5 +195,47 @@ exports.getStats = async (req, res) => {
   } catch (err) {
     console.error('[getStats] Error:', err);
     return res.status(500).json({ error: err.message });
+  }
+};
+// ----- Schedule CRUD -----
+exports.listSchedules = async (req, res) => {
+  try {
+    const schedules = await prisma.schedule.findMany({ orderBy: { city: 'asc' } });
+    res.json(schedules);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.createSchedule = async (req, res) => {
+  const { city, nextDraw } = req.body;
+  if (!city || !nextDraw) return res.status(400).json({ message: 'city and nextDraw required' });
+  try {
+    const schedule = await prisma.schedule.create({ data: { city, nextDraw: new Date(nextDraw) } });
+    res.json(schedule);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateSchedule = async (req, res) => {
+  const { city } = req.params;
+  const { nextDraw } = req.body;
+  if (!nextDraw) return res.status(400).json({ message: 'nextDraw required' });
+  try {
+    const schedule = await prisma.schedule.update({ where: { city }, data: { nextDraw: new Date(nextDraw) } });
+    res.json(schedule);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteSchedule = async (req, res) => {
+  const { city } = req.params;
+  try {
+    await prisma.schedule.delete({ where: { city } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

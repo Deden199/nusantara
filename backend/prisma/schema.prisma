@@ -33,7 +33,12 @@ model Override {
 
   @@index([time])                           // untuk query terbaru
 }
-
+/// Jadwal undian tiap kota
+model Schedule {
+  id       Int      @id @default(autoincrement())
+  city     String   @unique
+  nextDraw DateTime
+}
 /// Model untuk log error saat fetch otomatis
 model FetchError {
   id      Int      @id @default(autoincrement())

@@ -6,18 +6,22 @@ function generateNumbers() {
 }
 
 async function run() {
-  const cities = await prisma.lotteryResult.findMany({ distinct: ['city'] });
-  const drawDate = new Date();
-  for (const c of cities) {
-    await prisma.lotteryResult.create({
-      data: {
-        city: c.city,
-        drawDate,
-        numbers: generateNumbers(),
-      },
-    });
+  const now = new Date();
+  const schedules = await prisma.schedule.findMany();
+  for (const s of schedules) {
+    if (s.nextDraw <= now) {
+      await prisma.lotteryResult.create({
+        data: {
+          city: s.city,
+          drawDate: s.nextDraw,
+          numbers: generateNumbers(),
+        },
+      });
+      const next = new Date(s.nextDraw.getTime() + 24 * 60 * 60 * 1000);
+      await prisma.schedule.update({ where: { city: s.city }, data: { nextDraw: next } });
+    }
   }
-  console.log('Draw completed at', drawDate);
+  console.log('Draw job executed at', now);
 }
 
 cron.schedule('0 0 * * *', run); // every midnight

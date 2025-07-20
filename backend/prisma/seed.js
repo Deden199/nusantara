@@ -8,6 +8,9 @@ async function main() {
     await prisma.lotteryResult.create({
       data: { city, drawDate, numbers: '' },
     });
+        await prisma.schedule.create({
+      data: { city, nextDraw: drawDate },
+    });
   }
 }
 

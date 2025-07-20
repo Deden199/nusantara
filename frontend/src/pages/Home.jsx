@@ -10,7 +10,6 @@ export default function Home() {
   const [results, setResults] = useState({});
   const [nextDrawTimes, setNextDrawTimes] = useState({});
   const [loading, setLoading] = useState(true);
-  const dummyNextDraw = new Date(Date.now() + 60 * 60 * 1000); // 1 jam dari sekarang
 
   // Ambil daftar kota dan hasil + nextDraw per kota
   
@@ -33,7 +32,7 @@ export default function Home() {
     });
   }, []);
 
-  const heroNextDraw = nextDrawTimes.hero ? new Date(nextDrawTimes.hero) : null;
+  const showCountdown = heroNextDraw instanceof Date && !isNaN(heroNextDraw);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -51,12 +50,12 @@ export default function Home() {
             <h1 className="text-4xl lg:text-5xl font-extrabold">
               Next Draw Nusantara Pool
             </h1>
-            {heroNextDraw ? (
+            {showCountdown ? (
               <CountdownTimer targetDate={heroNextDraw} />
             ) : (
               <div className="h-12 w-48 bg-gray-700 animate-pulse rounded-md" />
             )}
-            {heroNextDraw && (
+            {showCountdown && (
               <p className="text-sm text-gray-300">
                 {heroNextDraw.toLocaleString('id-ID', {
                   weekday: 'long',

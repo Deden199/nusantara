@@ -9,8 +9,9 @@ export async function fetchPools() {
 
 export async function fetchLatest(city) {
   const res = await fetch(`${API_URL}/pools/${city}/latest`);
-  return res.json();
-}
+  const data = await res.json();
+  // ensure nextDraw gets passed along
+  return { ...data, nextDraw: data.nextDraw };}
 
 // Admin
 export async function adminLogin(username, password) {

@@ -30,6 +30,10 @@ router.get(
   ctrl.listOverrides    // pastikan ini diekspor di lottery.controller
 );
 router.get('/admin/stats',                   ctrl.getStats);
-
+// Schedule management
+router.get('/admin/schedules', ctrl.authMiddleware, ctrl.listSchedules);
+router.post('/admin/schedules', ctrl.authMiddleware, ctrl.createSchedule);
+router.put('/admin/schedules/:city', ctrl.authMiddleware, ctrl.updateSchedule);
+router.delete('/admin/schedules/:city', ctrl.authMiddleware, ctrl.deleteSchedule);
 
 module.exports = router;
