@@ -11,8 +11,12 @@ export async function fetchLatest(city) {
   const res = await fetch(`${API_URL}/pools/${city}/latest`);
   const data = await res.json();
   // ensure nextDraw gets passed along
-  return { ...data, nextDraw: data.nextDraw };}
-
+  return {
+    ...data,
+    numbers: [data.firstPrize, data.secondPrize, data.thirdPrize],
+    nextDraw: data.nextDraw,
+  };
+}
 // Admin
 export async function adminLogin(username, password) {
   const res = await fetch(`${API_URL}/admin/login`, {
@@ -35,14 +39,14 @@ export async function addPool(city, token) {
   return res.json();
 }
 
-export async function overrideResults(city, drawDate, numbers, token) {
+export async function overrideResults(city, drawDate, prizes, token) {
   const res = await fetch(`${API_URL}/admin/pools/${city}/results`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ drawDate, numbers }),
+    body: JSON.stringify({ drawDate, ...prizes }),
   });
   return res.json();
 }
@@ -111,5 +115,8 @@ export async function deleteSchedule(city, token) {
 }
 export async function fetchAllHistory() {
   const res = await fetch(`${API_URL}/history`);
-  return res.json();
-}
+  const data = await res.json();
+  return data.map(item => ({
+    ...item,
+    numbers: [item.firstPrize, item.secondPrize, item.thirdPrize],
+  }));}

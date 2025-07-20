@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
+import { Listbox, Transition } from '@headlessui/react';
+ import { ChevronUpDownIcon, CheckIcon } from '@heroicons/react/24/solid';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CityPoolCard from '../components/CityPoolCard';
@@ -15,17 +17,13 @@ export default function Home() {
     async function loadData() {
       try {
         const cityList = await fetchPools();
-        if (cityList.length > 0) setSelectedCity(cityList[0]);
         setCities(cityList);
+        if (cityList.length) setSelectedCity(cityList[0]);
 
         const pairs = await Promise.all(
-          cityList.map(async (city) => {
-            const data = await fetchLatest(city);
-            return [city, data];
-          })
+          cityList.map(async (city) => [city, await fetchLatest(city)])
         );
-        const map = Object.fromEntries(pairs);
-        setResults(map);
+        setResults(Object.fromEntries(pairs));
       } catch (err) {
         console.error('Failed to load pools:', err);
       } finally {
@@ -36,22 +34,14 @@ export default function Home() {
   }, []);
 
   const heroData = results[selectedCity] || {};
-  const heroNextDraw = heroData.nextDraw
-    ? new Date(heroData.nextDraw)
-    : null;
-  const showCountdown =
-    heroNextDraw instanceof Date && !isNaN(heroNextDraw.valueOf());
+  const heroNextDraw = heroData.nextDraw ? new Date(heroData.nextDraw) : null;
+  const showCountdown = heroNextDraw instanceof Date && !isNaN(heroNextDraw.valueOf());
 
-  // parse numbers for CityPoolCard
-  let heroNumbers = [];
-  if (heroData.numbers) {
-    heroNumbers = Array.isArray(heroData.numbers)
-      ? heroData.numbers
-      : heroData.numbers
-          .split(/[\s,-]+/)
-          .map((n) => n.trim())
-          .filter(Boolean);
-  }
+  const heroNumbers = [
+    heroData.firstPrize,
+    heroData.secondPrize,
+    heroData.thirdPrize,
+  ].filter(Boolean);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -66,16 +56,15 @@ export default function Home() {
         <div className="relative max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-8 py-24 px-6 text-white">
 
           {/* Info & Selector */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-6">
             <h1 className="text-4xl lg:text-5xl font-extrabold">
-              Next Draw {selectedCity || 'City'} Pool
+              Next Draw <span className="text-primary">{selectedCity || 'City'}</span> Pool
             </h1>
 
-            {showCountdown ? (
-              <CountdownTimer targetDate={heroNextDraw} />
-            ) : (
-              <div className="h-12 w-48 bg-gray-700 animate-pulse rounded-md" />
-            )}
+            {showCountdown
+              ? <CountdownTimer targetDate={heroNextDraw} />
+              : <div className="h-12 w-48 bg-gray-700 animate-pulse rounded-md" />
+            }
 
             {showCountdown && (
               <p className="text-sm text-gray-300">
@@ -87,35 +76,70 @@ export default function Home() {
                   hour: '2-digit',
                   minute: '2-digit',
                   timeZoneName: 'short',
+                                    timeZone: 'Asia/Jakarta',
+
                 })}
               </p>
             )}
 
-            {/* City Selector */}
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="mt-4 bg-gray-700 text-white px-4 py-2 rounded"
-            >
-              {cities.map((city) => (
-                <option key={city} value={city} className="text-black">
-                  {city}
-                </option>
-              ))}
-            </select>
+            {/* Custom City Selector */}
+            <Listbox value={selectedCity} onChange={setSelectedCity}>
+              <div className="relative mt-2 w-64">
+                <Listbox.Button className="relative w-full cursor-pointer bg-gray-700 text-white py-2 pl-4 pr-10 text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <span className="block truncate">{selectedCity || 'Pilih Kota'}</span>
+ <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+   <ChevronUpDownIcon className="h-5 w-5 text-gray-300" />
+ </span>
+                </Listbox.Button>
+
+                <Transition
+                  as={Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="opacity-0 scale-95"
+                  enterTo="opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="opacity-100 scale-100"
+                  leaveTo="opacity-0 scale-95"
+                >
+                  <Listbox.Options className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto focus:outline-none">
+                    {cities.map((city, idx) => (
+                      <Listbox.Option
+                        key={idx}
+                        value={city}
+                        className={({ active }) =>
+                          `cursor-pointer select-none relative py-2 pl-10 pr-4 ${
+                            active ? 'bg-primary text-white' : 'text-gray-900'
+                          }`
+                        }
+                      >
+                        {({ selected }) => (
+                          <>
+                            <span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
+                              {city}
+                            </span>
+                            {selected && (
+                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary">
+                                <CheckIcon className="h-5 w-5" />
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </Transition>
+              </div>
+            </Listbox>
           </div>
 
           {/* Featured Pool Card */}
           <div className="w-full lg:w-1/2">
-            {loading ? (
-              <div className="w-full h-64 bg-gray-700 animate-pulse rounded-2xl" />
-            ) : (
-              <CityPoolCard
-                city={selectedCity}
-                drawDate={heroData.drawDate}
-                numbers={heroNumbers}
-              />
-            )}
+            {loading
+              ? <div className="w-full h-64 bg-gray-700 animate-pulse rounded-2xl" />
+              : <CityPoolCard city={selectedCity} drawDate={heroData.drawDate}                firstPrize={heroData.firstPrize}
+                secondPrize={heroData.secondPrize}
+                thirdPrize={heroData.thirdPrize} numbers={heroNumbers} />
+            }
           </div>
         </div>
       </section>
@@ -129,33 +153,21 @@ export default function Home() {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="h-64 bg-gray-200 rounded-2xl animate-pulse"
-              />
+              <div key={i} className="h-64 bg-gray-200 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {cities.map((city) => {
               const data = results[city] || {};
-              let nums = [];
-              if (data.numbers) {
-                nums = Array.isArray(data.numbers)
-                  ? data.numbers
-                  : data.numbers
-                      .split(/[\s,-]+/)
-                      .map((n) => n.trim())
-                      .filter(Boolean);
-              }
-              return (
-                <CityPoolCard
-                  key={city}
-                  city={city}
-                  drawDate={data.drawDate}
-                  numbers={nums}
-                />
-              );
+               const nums = [
+                data.firstPrize,
+                data.secondPrize,
+                data.thirdPrize,
+              ].filter(Boolean);
+              return <CityPoolCard key={city} city={city} drawDate={data.drawDate}                  firstPrize={data.firstPrize}
+                  secondPrize={data.secondPrize}
+                  thirdPrize={data.thirdPrize} numbers={nums} />;
             })}
           </div>
         )}
@@ -163,5 +175,5 @@ export default function Home() {
 
       <Footer />
     </div>
-  );
+);
 }

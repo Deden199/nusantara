@@ -22,11 +22,9 @@ export default function Header() {
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center space-x-6">
           <Link to="/" className="hover:text-gold transition">Beranda</Link>
-          <Link to="/lucky" className="hover:text-gold transition">Lucky Number</Link>
-          <Link to="/results" className="hover:text-gold transition">Previous Results</Link>
-          <Link to="/stats" className="hover:text-gold transition">Statistics</Link>
-          <Link to="/about" className="hover:text-gold transition">About Us</Link>
-          <Link to="/howtoplay" className="hover:text-gold transition">How To Play</Link>
+          <Link to="/lucky" className="hover:text-gold transition">Generate Nomor</Link>
+          <Link to="/stats" className="hover:text-gold transition">Hasil Sebelumnya</Link>
+          <Link to="/about" className="hover:text-gold transition">Tentang Kami</Link>
           <button className="bg-red-600 hover:bg-red-700 px-4 py-1 rounded-lg flex items-center space-x-1 transition">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M10 16.5l6-4.5-6-4.5v9z" />

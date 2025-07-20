@@ -34,8 +34,14 @@ export default function Admin() {
   const [overrides, setOverrides] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [newCity, setNewCity] = useState('');
-  const [overrideData, setOverrideData] = useState({ city: '', drawDate: '', numbers: '' });
-    const [schedules, setSchedules] = useState([]);
+  const [overrideData, setOverrideData] = useState({
+    city: '',
+    drawDate: '',
+    firstPrize: '',
+    secondPrize: '',
+    thirdPrize: '',
+  });
+      const [schedules, setSchedules] = useState([]);
   const [scheduleForm, setScheduleForm] = useState({ city: '', drawTime: '' });
   const [message, setMessage] = useState({ text: '', type: '' });
 
@@ -114,13 +120,24 @@ export default function Admin() {
   };
   const handleOverride = async e => {
     e.preventDefault();
-    const { city, drawDate, numbers } = overrideData;
-    if (!city || !drawDate || !numbers.trim()) return;
+    const { city, drawDate, firstPrize, secondPrize, thirdPrize } = overrideData;
+    if (!city || !drawDate) return;
     try {
-      await overrideResults(city, drawDate, numbers, token);
-      setMessage({ text: `Hasil ${city} diperbarui`, type: 'success' });
-      setOverrideData({ city: '', drawDate: '', numbers: '' });
-      const recs = await fetchRecentOverrides(token);
+      await overrideResults(
+        city,
+        drawDate,
+        { firstPrize, secondPrize, thirdPrize },
+        token
+      );
+            setMessage({ text: `Hasil ${city} diperbarui`, type: 'success' });
+      setOverrideData({
+        city: '',
+        drawDate: '',
+        firstPrize: '',
+        secondPrize: '',
+        thirdPrize: '',
+      });
+            const recs = await fetchRecentOverrides(token);
       setOverrides(Array.isArray(recs) ? recs : []);
     } catch (err) {
       setMessage({ text: err.message || 'Gagal override', type: 'error' });
@@ -231,9 +248,21 @@ export default function Admin() {
                 />
                 <input
                   className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
-                  placeholder="Nomor baru (03,12,27,45)"
-                  value={overrideData.numbers}
-                  onChange={e => setOverrideData({ ...overrideData, numbers: e.target.value })}
+                  placeholder="First Prize"
+                  value={overrideData.firstPrize}
+                  onChange={e => setOverrideData({ ...overrideData, firstPrize: e.target.value })}
+                />
+                <input
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                  placeholder="Second Prize"
+                  value={overrideData.secondPrize}
+                  onChange={e => setOverrideData({ ...overrideData, secondPrize: e.target.value })}
+                />
+                <input
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                  placeholder="Third Prize"
+                  value={overrideData.thirdPrize}
+                  onChange={e => setOverrideData({ ...overrideData, thirdPrize: e.target.value })}
                 />
                 <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Update </button>
               </form>
@@ -272,7 +301,7 @@ function OverrideTable({ data }) {
           {data.map((o,i) => (
             <tr key={i} className={i%2===0 ? 'bg-white' : 'bg-gray-50'}>
               <td className="px-4 py-2">{o.city}</td>
-              <td className="px-4 py-2">{new Date(o.time).toLocaleString('id-ID')}</td>
+              <td className="px-4 py-2">{new Date(o.time).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</td>
               <td className="px-4 py-2">{o.oldNumbers}</td>
               <td className="px-4 py-2">{o.newNumbers}</td>
       <td className="px-4 py-2">{o.adminUsername}</td>

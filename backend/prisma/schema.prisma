@@ -10,14 +10,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Model untuk menyimpan hasil undian tiap kota dan tanggal
 model LotteryResult {
-  id         Int      @id @default(autoincrement())
-  city       String
-  drawDate   DateTime
-  numbers    String
-  fetchedAt  DateTime @default(now())   // timestamp saat fetch otomatis
-  createdAt  DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  city        String
+  drawDate    DateTime
+
+  firstPrize  String   @default("")   // ⚠️ tambahkan default
+  secondPrize String   @default("")   // ⚠️ tambahkan default
+  thirdPrize  String   @default("")   // ⚠️ tambahkan default
+
+  fetchedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@unique([city, drawDate], name: "city_drawDate")
 }
@@ -35,10 +38,11 @@ model Override {
 }
 /// Jadwal undian tiap kota
 model Schedule {
-  id       Int      @id @default(autoincrement())
-  city     String   @unique
-  drawTime String   // format HH:mm
+  id       Int    @id @default(autoincrement())
+  city     String @unique
+  drawTime String @default("00:00")  // <-- nilai default untuk baris lama & baru
 }
+
 /// Model untuk log error saat fetch otomatis
 model FetchError {
   id      Int      @id @default(autoincrement())

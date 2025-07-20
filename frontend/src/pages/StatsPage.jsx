@@ -88,10 +88,11 @@ export default function StatsPage() {
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   {displayed.map((item, idx) => {
-                    const nums = Array.isArray(item.numbers)
-                      ? item.numbers
-                      : typeof item.numbers === 'string'
-                        ? item.numbers.split(/[,\s]+/) : [];
+                    const nums = [
+                      item.firstPrize,
+                      item.secondPrize,
+                      item.thirdPrize,
+                    ].filter(Boolean);
                     return (
                       <div
                         key={idx}
@@ -103,8 +104,7 @@ export default function StatsPage() {
                       >
                         <div className="text-gray-800 font-medium">{item.city}</div>
                         <div className="text-gray-600">
-                          {new Date(item.drawDate).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
-                        </div>
+                          {new Date(item.drawDate).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Jakarta' })}                        </div>
                         <div className="flex flex-wrap gap-1">
                           {nums.map((num, i) => (
                             <div

@@ -6,8 +6,13 @@ async function main() {
   const drawDate = new Date();
   for (const city of cities) {
     await prisma.lotteryResult.create({
-      data: { city, drawDate, numbers: '' },
-    });
+      data: {
+        city,
+        drawDate,
+        firstPrize: '',
+        secondPrize: '',
+        thirdPrize: '',
+      },    });
     await prisma.schedule.create({
       data: { city, drawTime: `${drawDate.getHours().toString().padStart(2,'0')}:${drawDate.getMinutes().toString().padStart(2,'0')}` },
     });

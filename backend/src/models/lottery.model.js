@@ -23,11 +23,11 @@ module.exports = {
     return prisma.lotteryResult.create({ data });
   },
 
-  async overrideResult(city, drawDate, numbers) {
+  async overrideResult(city, drawDate, prizes) {
     return prisma.lotteryResult.upsert({
       where: { city_drawDate: { city, drawDate } },
-      update: { numbers },
-      create: { city, drawDate, numbers },
+      update: prizes,
+      create: { city, drawDate, ...prizes },
     });
   },
 };

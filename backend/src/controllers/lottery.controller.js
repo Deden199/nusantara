@@ -27,7 +27,7 @@ exports.latestByCity = async (req, res) => {
     let nextDraw = null;
     if (schedule?.drawTime) {
       const [hour, minute] = schedule.drawTime.split(':').map(Number);
-      const now = new Date();
+      const now = jakartaDate();
       const next = new Date(now);
       next.setHours(hour, minute, 0, 0);
       if (next <= now) next.setDate(next.getDate() + 1);
@@ -54,8 +54,13 @@ exports.addPool = async (req, res) => {
   if (!city) return res.status(400).json({ message: 'city required' });
   try {
     const result = await prisma.lotteryResult.create({
-      data: { city, drawDate: new Date(), numbers: '' },
-    });
+      data: {
+        city,
+        drawDate: new jakartaDate(),
+        firstPrize: '',
+        secondPrize: '',
+        thirdPrize: '',
+      },    });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -64,28 +69,28 @@ exports.addPool = async (req, res) => {
 
 exports.overrideResults = async (req, res) => {
   const { city } = req.params;
-  const { drawDate, numbers } = req.body;
+  const { drawDate, firstPrize, secondPrize, thirdPrize } = req.body;
   try {
-        const date = new Date(drawDate);
+        const date = jakartaDate(drawDate);
 
     // Fetch current numbers before update (if any)
     const existing = await prisma.lotteryResult.findUnique({
       where: { city_drawDate: { city, drawDate: date } },
-      select: { numbers: true },
+      select: { firstPrize: true, secondPrize: true, thirdPrize: true },
     });
 
     // Upsert the result with the new numbers
     const result = await prisma.lotteryResult.upsert({
       where: { city_drawDate: { city, drawDate: date } },
-      update: { numbers },
-      create: { city, drawDate: date, numbers },
+      update: { firstPrize, secondPrize, thirdPrize },
+      create: { city, drawDate: date, firstPrize, secondPrize, thirdPrize },
     });
         // Record the override action
     await prisma.override.create({
       data: {
         city,
-        oldNumbers: existing?.numbers || '',
-        newNumbers: numbers,
+        oldNumbers: [existing?.firstPrize, existing?.secondPrize, existing?.thirdPrize].filter(Boolean).join(','),
+        newNumbers: [firstPrize, secondPrize, thirdPrize].join(','),
         adminUsername: req.user.username,
       },
     });
@@ -95,10 +100,13 @@ exports.overrideResults = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+function jakartaDate(input) {
+  return new Date(new Date(input || Date.now()).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+}
 
 exports.login = (req, res) => {
   const { username, password } = req.body;
-  if (username === 'admin' && password === 'password') {
+  if (username === 'admin' && password === '@nusantara12345') {
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '1d' });
     res.json({ token });
   } else {
@@ -168,7 +176,7 @@ exports.getStats = async (req, res) => {
     const totalCities = cityGroups.length;
 
     // 2. Hitung fetch hari ini
-    const today = new Date();
+    const today = jakartaDate();
     today.setHours(0, 0, 0, 0);
     const todayFetches = await prisma.lotteryResult.count({
       where: { fetchedAt: { gte: today } },
