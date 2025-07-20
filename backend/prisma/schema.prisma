@@ -40,8 +40,9 @@ model Override {
 model Schedule {
   id       Int    @id @default(autoincrement())
   city     String @unique
-  drawTime String @default("00:00")  // <-- nilai default untuk baris lama & baru
-}
+  drawTime String @default("00:00")  // <-- waktu pengundian
+  closeTime String @default("00:00") // <-- waktu tutup pemasangan
+  }
 
 /// Model untuk log error saat fetch otomatis
 model FetchError {
