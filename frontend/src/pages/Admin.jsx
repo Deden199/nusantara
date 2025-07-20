@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 
 import {
   BarChart,
@@ -21,7 +20,7 @@ import {
   fetchSchedules,
   createSchedule,
   updateSchedule,
-  deleteSchedule,deletePool
+  deleteSchedule,
 } from '../services/api';
 
 export default function Admin() {
@@ -30,7 +29,6 @@ export default function Admin() {
 
   const [stats, setStats] = useState(null);
   const [pools, setPools] = useState([]);
-  
   const [overrides, setOverrides] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [newCity, setNewCity] = useState('');
@@ -74,7 +72,6 @@ export default function Admin() {
       setMessage({ text: err.message || 'Gagal menambahkan kota', type: 'error' });
     }
   };
-  
  const handleScheduleSave = async e => {
     e.preventDefault();
     const { city, nextDraw } = scheduleForm;
