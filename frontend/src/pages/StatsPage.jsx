@@ -31,7 +31,7 @@ export default function StatsPage() {
           <main className="px-8 py-12 space-y-12">
             {/* Title */}
             <div className="text-center">
-              <h1 className="text-4xl font-extrabold text-primary mb-2">Statistik & Riwayat Nusantara Pool</h1>
+              <h1 className="text-4xl font-extrabold text-primary mb-2">Statistik & Riwayat Nusantara Full</h1>
               <p className="text-gray-600">Pantau data undian dan histori nomor dengan tampilan interaktif dalam tampilan boxed.</p>
             </div>
 

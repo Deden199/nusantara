@@ -16,7 +16,7 @@ export default function Header() {
           <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center text-primary font-bold">
             NP
           </div>
-          <span className="text-2xl font-extrabold">Nusantara Pool</span>
+          <span className="text-2xl font-extrabold">Nusantara Full</span>
         </Link>
 
         {/* Desktop Nav */}

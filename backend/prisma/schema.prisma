@@ -37,7 +37,7 @@ model Override {
 model Schedule {
   id       Int      @id @default(autoincrement())
   city     String   @unique
-  nextDraw DateTime
+  drawTime String   // format HH:mm
 }
 /// Model untuk log error saat fetch otomatis
 model FetchError {

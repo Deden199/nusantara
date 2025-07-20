@@ -9,11 +9,18 @@ async function run() {
   const now = new Date();
   const schedules = await prisma.schedule.findMany();
   for (const s of schedules) {
-    if (s.nextDraw <= now) {
-      await prisma.lotteryResult.create({
+    if (!s.drawTime) continue;
+    const [hour, minute] = s.drawTime.split(':').map(Number);
+    const drawDate = new Date(now);
+    drawDate.setHours(hour, minute, 0, 0);
+    if (drawDate > now) drawDate.setDate(drawDate.getDate() - 1);
+    const existing = await prisma.lotteryResult.findUnique({
+      where: { city_drawDate: { city: s.city, drawDate } },
+    });
+    if (!existing && now >= drawDate) {      await prisma.lotteryResult.create({
         data: {
           city: s.city,
-          drawDate: s.nextDraw,
+          drawDate,
           numbers: generateNumbers(),
         },
       });
@@ -24,6 +31,6 @@ async function run() {
   console.log('Draw job executed at', now);
 }
 
-cron.schedule('0 0 * * *', run); // every midnight
+cron.schedule('* * * * *', run); // check every minute
 
 module.exports = { run };

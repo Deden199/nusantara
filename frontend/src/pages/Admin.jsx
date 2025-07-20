@@ -21,6 +21,8 @@ import {
   createSchedule,
   updateSchedule,
   deleteSchedule,
+    deletePool,
+
 } from '../services/api';
 
 export default function Admin() {
@@ -34,7 +36,7 @@ export default function Admin() {
   const [newCity, setNewCity] = useState('');
   const [overrideData, setOverrideData] = useState({ city: '', drawDate: '', numbers: '' });
     const [schedules, setSchedules] = useState([]);
-  const [scheduleForm, setScheduleForm] = useState({ city: '', nextDraw: '' });
+  const [scheduleForm, setScheduleForm] = useState({ city: '', drawTime: '' });
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // Redirect to login if no token
@@ -74,18 +76,18 @@ export default function Admin() {
   };
  const handleScheduleSave = async e => {
     e.preventDefault();
-    const { city, nextDraw } = scheduleForm;
-    if (!city || !nextDraw) return;
+      const { city, drawTime } = scheduleForm;
+    if (!city || !drawTime) return;
     try {
       const exists = schedules.some(s => s.city === city);
       if (exists) {
-        await updateSchedule(city, nextDraw, token);
+        await updateSchedule(city, drawTime, token);
       } else {
-        await createSchedule(city, nextDraw, token);
+        await createSchedule(city, drawTime, token);
       }
       const updated = await fetchSchedules(token);
       setSchedules(Array.isArray(updated) ? updated : []);
-      setScheduleForm({ city: '', nextDraw: '' });
+      setScheduleForm({ city: '', drawTime: '' });
       setMessage({ text: 'Jadwal tersimpan', type: 'success' });
     } catch (err) {
       setMessage({ text: err.message || 'Gagal menyimpan jadwal', type: 'error' });
@@ -99,6 +101,15 @@ export default function Admin() {
       setSchedules(Array.isArray(updated) ? updated : []);
     } catch (err) {
       setMessage({ text: err.message || 'Gagal menghapus jadwal', type: 'error' });
+    }
+  };
+    const handleDeleteCity = async city => {
+    try {
+      await deletePool(city, token);
+      const updated = await fetchPools(token);
+      setPools(updated);
+    } catch (err) {
+      setMessage({ text: err.message || 'Gagal menghapus kota', type: 'error' });
     }
   };
   const handleOverride = async e => {
@@ -154,19 +165,24 @@ export default function Admin() {
             </>
           )}
           {activeTab === 'add' && (
-            <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
-              <h4 className="text-xl font-semibold mb-4">Tambah Kota Baru</h4>
-              <form onSubmit={handleAdd} className="space-y-4">
-                <input
-                  className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
-                  placeholder="Nama kota"
-                  value={newCity}
-                  onChange={e => setNewCity(e.target.value)}
-                />
-                <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Tambah </button>
-             <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Update </button>
-            </form>
-          </div>
+            <div className="space-y-8">
+              <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
+                <h4 className="text-xl font-semibold mb-4">Tambah Kota Baru</h4>
+                <form onSubmit={handleAdd} className="space-y-4">
+                  <input
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
+                    placeholder="Nama kota"
+                    value={newCity}
+                    onChange={e => setNewCity(e.target.value)}
+                  />
+                  <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Tambah </button>
+                </form>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6">
+                <h4 className="text-lg font-semibold mb-4">Daftar Kota</h4>
+                <CityTable data={pools} onDelete={handleDeleteCity} />
+              </div>
+            </div>
           )}
           {activeTab === 'schedule' && (
             <div className="space-y-8">
@@ -186,10 +202,10 @@ export default function Admin() {
                     {pools.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <input
-                    type="datetime-local"
+                    type="time"
                     className="w-full border rounded-lg px-4 py-2 focus:ring-primary focus:border-primary"
-                    value={scheduleForm.nextDraw}
-                    onChange={e => setScheduleForm({ ...scheduleForm, nextDraw: e.target.value })}
+                    value={scheduleForm.drawTime}
+                    onChange={e => setScheduleForm({ ...scheduleForm, drawTime: e.target.value })}
                   />
                   <button className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"> Simpan </button>
                 </form>
@@ -267,6 +283,38 @@ function OverrideTable({ data }) {
     </div>
   );
 }
+function CityTable({ data, onDelete }) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return <p className="text-center py-4 text-gray-500">Belum ada kota.</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full">
+        <thead>
+          <tr className="bg-gray-50">
+            {['Kota', ''].map(h => (
+              <th key={h} className="px-4 py-2 text-left text-sm font-medium text-gray-600">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((c, i) => (
+            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              <td className="px-4 py-2">{c}</td>
+              <td className="px-4 py-2">
+                <button onClick={() => onDelete(c)} className="text-red-600 hover:underline">
+                  Hapus
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function ScheduleTable({ data, onDelete }) {
   if (!Array.isArray(data) || data.length === 0) {
@@ -289,7 +337,7 @@ function ScheduleTable({ data, onDelete }) {
             <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
               <td className="px-4 py-2">{s.city}</td>
               <td className="px-4 py-2">
-                {new Date(s.nextDraw).toLocaleString('id-ID')}
+                {s.drawTime}
               </td>
               <td className="px-4 py-2">
                 <button

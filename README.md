@@ -1,4 +1,4 @@
-# Nusantara Pool
+# Nusantara Full
 
 Platform hasil undian kota-kota di Indonesia.
 

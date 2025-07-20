@@ -72,30 +72,36 @@ export async function fetchSchedules(token) {
   return res.json();
 }
 
-export async function createSchedule(city, nextDraw, token) {
+export async function createSchedule(city, drawTime, token) {
   const res = await fetch(`${API_URL}/admin/schedules`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ city, nextDraw }),
+    body: JSON.stringify({ city, drawTime }),
   });
   return res.json();
 }
 
-export async function updateSchedule(city, nextDraw, token) {
+export async function updateSchedule(city, drawTime, token) {
   const res = await fetch(`${API_URL}/admin/schedules/${city}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ nextDraw }),
+    body: JSON.stringify({ drawTime }),
   });
   return res.json();
 }
-
+export async function deletePool(city, token) {
+  const res = await fetch(`${API_URL}/admin/pools/${city}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+}
 export async function deleteSchedule(city, token) {
   const res = await fetch(`${API_URL}/admin/schedules/${city}`, {
     method: 'DELETE',

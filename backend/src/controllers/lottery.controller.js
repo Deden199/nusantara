@@ -24,8 +24,17 @@ exports.latestByCity = async (req, res) => {
     });
     if (!result) return res.status(404).json({ message: 'Not found' });
     const schedule = await prisma.schedule.findUnique({ where: { city } });
-    res.json({ ...result, nextDraw: schedule?.nextDraw || null });  } catch (err) {
-    res.status(500).json({ error: err.message });
+    let nextDraw = null;
+    if (schedule?.drawTime) {
+      const [hour, minute] = schedule.drawTime.split(':').map(Number);
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(hour, minute, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      nextDraw = next;
+    }
+    res.json({ ...result, nextDraw });
+  } catch (err) {    res.status(500).json({ error: err.message });
   }
 };
 exports.deletePool = async (req, res) => {
@@ -219,10 +228,10 @@ exports.listSchedules = async (req, res) => {
 };
 
 exports.createSchedule = async (req, res) => {
-  const { city, nextDraw } = req.body;
-  if (!city || !nextDraw) return res.status(400).json({ message: 'city and nextDraw required' });
+  const { city, drawTime } = req.body;
+  if (!city || !drawTime) return res.status(400).json({ message: 'city and drawTime required' });
   try {
-    const schedule = await prisma.schedule.create({ data: { city, nextDraw: new Date(nextDraw) } });
+    const schedule = await prisma.schedule.create({ data: { city, drawTime } });
     res.json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -231,10 +240,10 @@ exports.createSchedule = async (req, res) => {
 
 exports.updateSchedule = async (req, res) => {
   const { city } = req.params;
-  const { nextDraw } = req.body;
-  if (!nextDraw) return res.status(400).json({ message: 'nextDraw required' });
+  const { drawTime } = req.body;
+  if (!drawTime) return res.status(400).json({ message: 'drawTime required' });
   try {
-    const schedule = await prisma.schedule.update({ where: { city }, data: { nextDraw: new Date(nextDraw) } });
+    const schedule = await prisma.schedule.update({ where: { city }, data: { drawTime } });
     res.json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
