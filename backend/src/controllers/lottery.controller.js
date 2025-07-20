@@ -101,7 +101,15 @@ exports.overrideResults = async (req, res) => {
   }
 };
 function jakartaDate(input) {
-  return new Date(new Date(input || Date.now()).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  // input dari <input type="datetime-local"> seperti "2025-07-21T04:55"
+  const [datePart, timePart] = (input || '').split('T');
+  // jika format tidak sesuai, fallback ke waktu saat ini
+  if (!datePart || !timePart) {
+    return new Date();
+  }
+  // bentuk ISO dengan zona +07:00 (WIB)
+  const iso = `${datePart}T${timePart}:00+07:00`;
+  return new Date(iso);
 }
 
 exports.login = (req, res) => {

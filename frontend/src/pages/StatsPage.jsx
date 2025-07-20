@@ -20,19 +20,28 @@ export default function StatsPage() {
       .catch(console.error);
   }, []);
 
-  const displayed = filterCity ? history.filter(item => item.city === filterCity) : history;
+  const displayed = filterCity
+    ? history.filter(item => item.city === filterCity)
+    : history;
+
+  // Format helpers for date & time in WIB
+  const formatDate = iso => new Date(iso).toLocaleDateString('id-ID', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta'
+  });
+  const formatTime = iso => new Date(iso).toLocaleTimeString('id-ID', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta'
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
       <Header />
-      {/* Box container */}
       <div className="flex-grow flex justify-center items-start py-16">
         <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden">
           <main className="px-8 py-12 space-y-12">
             {/* Title */}
             <div className="text-center">
-              <h1 className="text-4xl font-extrabold text-primary mb-2">Statistik & Riwayat Nusantara Full</h1>
-              <p className="text-gray-600">Pantau data undian dan histori nomor dengan tampilan interaktif dalam tampilan boxed.</p>
+              <h1 className="text-4xl font-extrabold text-primary mb-2">Statistik &amp; Riwayat Nusantara Full</h1>
+              <p className="text-gray-600">Pantau data undian dan histori nomor dengan tampilan interaktif.</p>
             </div>
 
             {/* Overview Cards */}
@@ -70,9 +79,7 @@ export default function StatsPage() {
                   className="border border-gray-300 rounded-lg px-3 py-1 focus:ring-primary focus:border-primary"
                 >
                   <option value="">Semua Kota</option>
-                  {cities.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </section>
@@ -83,35 +90,40 @@ export default function StatsPage() {
               <div className="bg-white rounded-2xl shadow divide-y divide-gray-200">
                 <div className="grid grid-cols-3 bg-gray-100 px-6 py-3 font-medium text-gray-700 uppercase text-sm">
                   <div>Kota</div>
-                  <div>Tanggal Draw</div>
-                  <div>Nomor</div>
+                  <div>Tanggal &amp; Waktu</div>
+                  <div>Prizes</div>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   {displayed.map((item, idx) => {
-                    const nums = [
-                      item.firstPrize,
-                      item.secondPrize,
-                      item.thirdPrize,
-                    ].filter(Boolean);
+                    const prizes = [
+                      { label: '1st Prize', value: item.firstPrize },
+                      { label: '2nd Prize', value: item.secondPrize },
+                      { label: '3rd Prize', value: item.thirdPrize },
+                    ].filter(p => p.value);
                     return (
                       <div
                         key={idx}
-                        className={
-                          `grid grid-cols-3 px-6 py-4 items-center text-sm ${
-                            idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                          }`
-                        }
+                        className={`grid grid-cols-3 px-6 py-4 items-start text-sm ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                       >
                         <div className="text-gray-800 font-medium">{item.city}</div>
                         <div className="text-gray-600">
-                          {new Date(item.drawDate).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Jakarta' })}                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {nums.map((num, i) => (
-                            <div
-                              key={i}
-                              className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold"
-                            >
-                              {String(num)}
+                          <div>{formatDate(item.drawDate)}</div>
+                          <div className="text-xs">{formatTime(item.drawDate)} WIB</div>
+                        </div>
+                        <div className="space-y-3">
+                          {prizes.map((p, i) => (
+                            <div key={i} className="">
+                              <h5 className="text-xs font-semibold text-gray-700 mb-2">{p.label}</h5>
+                              <div className="flex gap-3">
+                                {String(p.value).split('').map((d, j) => (
+                                  <div
+                                    key={j}
+                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-red-400 text-white font-extrabold text-lg shadow-[0_0_10px_rgba(255,0,0,0.5)]"
+                                  >
+                                    {d}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           ))}
                         </div>
