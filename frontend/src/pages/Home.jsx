@@ -48,7 +48,7 @@ export default function Home() {
           {/* Countdown */}
           <div className="flex-1 space-y-4">
             <h1 className="text-4xl lg:text-5xl font-extrabold">
-              Next Draw Nusantara Pool
+              Result Angka Nusantara Pool
             </h1>
             {heroNextDraw ? (
               <CountdownTimer targetDate={heroNextDraw} />
@@ -90,7 +90,7 @@ export default function Home() {
       {/* GRID KOTA */}
       <main className="flex-grow max-w-7xl mx-auto px-6 py-12">
         <h2 className="text-3xl font-bold text-center text-primary mb-8">
-          Hasil Terbaru Semua Kota
+          Hasil Result Semua Pasaran
         </h2>
 
         {loading ? (
