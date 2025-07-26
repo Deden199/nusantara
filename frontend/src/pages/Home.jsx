@@ -58,7 +58,7 @@ export default function Home() {
           {/* Info & Selector */}
           <div className="flex-1 space-y-6">
             <h1 className="text-4xl lg:text-5xl font-extrabold">
-              Next Draw <span className="text-primary">{selectedCity || 'City'}</span> Pool
+              Result Angka <span className="text-primary">{selectedCity || 'City'}</span> Pool
             </h1>
 
             {showCountdown
@@ -147,7 +147,7 @@ export default function Home() {
       {/* All Cities Grid */}
       <main className="flex-grow max-w-7xl mx-auto px-6 py-12">
         <h2 className="text-3xl font-bold text-center text-primary mb-8">
-          Hasil Terbaru Semua Kota
+          Hasil Result Semua Pasaran
         </h2>
 
         {loading ? (
