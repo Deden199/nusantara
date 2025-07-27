@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
+const { getIO } = require('../io');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
@@ -102,6 +103,10 @@ exports.overrideResults = async (req, res) => {
         adminUsername: req.user.username,
       },
     });
+
+    // Notify clients that this city's result has changed
+    const io = getIO();
+    io.emit('resultUpdated', { city });
 
     res.json(result);
   } catch (err) {
