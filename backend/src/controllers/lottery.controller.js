@@ -111,22 +111,19 @@ exports.overrideResults = async (req, res) => {
 
 
 function jakartaDate(input) {
-    // When called without argument, return current time in Asia/Jakarta
-  if (input === undefined) {
-    const nowStr = new Date().toLocaleString('en-US', {
-      timeZone: 'Asia/Jakarta',
-    });
-    return new Date(nowStr);
+  // When called without argument, return current time in Asia/Jakarta
+  if (!input) {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utc + 7 * 3600000); // GMT+7
   }
   // input dari <input type="datetime-local"> seperti "2025-07-21T04:55"
   const [datePart, timePart] = (input || '').split('T');
   // jika format tidak sesuai, fallback ke waktu saat ini
-  if (!datePart || !timePart) {
-    return new Date();
-  }
+  if (!datePart || !timePart) return new Date();
+
   // bentuk ISO dengan zona +07:00 (WIB)
-  const iso = `${datePart}T${timePart}:00+07:00`;
-  return new Date(iso);
+  return new Date(`${datePart}T${timePart}:00+07:00`);
 }
 
 exports.login = (req, res) => {
