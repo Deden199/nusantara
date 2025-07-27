@@ -1,4 +1,5 @@
 import { useEffect, useState, Fragment } from 'react';
+import { io as socketIO } from 'socket.io-client';
 import { Listbox, Transition } from '@headlessui/react';
  import { ChevronUpDownIcon, CheckIcon } from '@heroicons/react/24/solid';
 import Header from '../components/Header';
@@ -12,6 +13,21 @@ export default function Home() {
   const [results, setResults] = useState({});
   const [selectedCity, setSelectedCity] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const socket = socketIO(import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000');
+    socket.on('resultUpdated', async ({ city }) => {
+      try {
+        const latest = await fetchLatest(city);
+        setResults(prev => ({ ...prev, [city]: latest }));
+      } catch (err) {
+        console.error('Failed to update results for', city, err);
+      }
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     async function loadData() {

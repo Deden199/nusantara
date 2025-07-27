@@ -4,6 +4,7 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const routes = require('./routes/lottery.routes');
+const { init } = require('./io');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,6 +18,7 @@ const io = new Server(server, {
     credentials: true         // allow credentials if needed
   }
 });
+init(io);
 
 // Global CORS settings for Express
 app.use(cors({
