@@ -30,16 +30,20 @@ function formatCountdown(target) {
 
 // --- Ball component (mobile-safe, responsive, extra glow) ---
 function Ball({ rolling, value }) {
-  const [display, setDisplay] = useState(0);
+  const [display, setDisplay] = useState(null);
 
   useEffect(() => {
     let interval;
     if (rolling) {
+      // reset display immediately so previous static numbers are cleared
+      setDisplay(Math.floor(Math.random() * 10));
       interval = setInterval(() => {
         setDisplay(Math.floor(Math.random() * 10));
       }, 80);
     } else if (value !== null && value !== undefined) {
       setDisplay(value);
+    } else {
+      setDisplay(null);
     }
     return () => clearInterval(interval);
   }, [rolling, value]);
@@ -59,7 +63,7 @@ function Ball({ rolling, value }) {
         rolling ? 'animate-pulse' : '',
       ].join(' ')}
     >
-      {display}
+      {display ?? ''}
     </motion.div>
   );
 }
@@ -319,8 +323,8 @@ export default function LiveDrawPage() {
     socket.on('prizeStart', ({ prize }) => {
       setPrizes((prev) => {
         const updated = { ...prev, currentPrize: prize };
-        const arr = initialBalls();
-        arr[0].rolling = true;
+        // all balls start rolling until numbers are drawn
+        const arr = Array.from({ length: 6 }, () => ({ value: null, rolling: true }));
         updated[prize] = arr;
         return updated;
       });
@@ -331,7 +335,6 @@ export default function LiveDrawPage() {
         const updated = { ...prev };
         const arr = prev[p].map((b) => ({ ...b }));
         arr[index] = { value: number, rolling: false };
-        if (index + 1 < arr.length) arr[index + 1].rolling = true;
         updated[p] = arr;
         return updated;
       });
