@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { logFetchError } = require('../controllers/lottery.controller');
 
 function jakartaNow() {
   const now = new Date();
@@ -11,49 +12,93 @@ function generateNumber() {
 }
 
 async function run() {
-  const now = jakartaNow();
-  const schedules = await prisma.schedule.findMany();
-  for (const s of schedules) {
-    if (!s.drawTime) continue;
-    const [hour, minute] = s.drawTime.split(':').map(Number);
-    const drawDate = new Date(now);
-    drawDate.setHours(hour, minute, 0, 0);
-    if (drawDate > now) drawDate.setDate(drawDate.getDate() - 1);
-    const existing = await prisma.lotteryResult.findUnique({
-      where: { city_drawDate: { city: s.city, drawDate } },
-    });
-    if (!existing && now >= drawDate) {
-      await prisma.lotteryResult.create({
-        data: {
-          city: s.city,
-          drawDate,
-          firstPrize: generateNumber(),
-          secondPrize: generateNumber(),
-          thirdPrize: generateNumber(),
-        },
+  try {
+    const now = jakartaNow();
+    let schedules = [];
+    try {
+      schedules = await prisma.schedule.findMany();
+    } catch (err) {
+      console.warn('[run] prisma.schedule.findMany failed:', err);
+    }
+    for (const s of schedules) {
+      if (!s.drawTime) continue;
+      const [hour, minute] = s.drawTime.split(':').map(Number);
+      const drawDate = new Date(now);
+      drawDate.setHours(hour, minute, 0, 0);
+      if (drawDate > now) drawDate.setDate(drawDate.getDate() - 1);
+      const existing = await prisma.lotteryResult.findUnique({
+        where: { city_drawDate: { city: s.city, drawDate } },
       });
+      if (!existing && now >= drawDate) {
+        await prisma.lotteryResult.create({
+          data: {
+            city: s.city,
+            drawDate,
+            firstPrize: generateNumber(),
+            secondPrize: generateNumber(),
+            thirdPrize: generateNumber(),
+          },
+        });
+      }
+    }
+    console.log('Draw job executed at', now);
+  } catch (err) {
+    console.error('[run] Error executing draw job:', err);
+    if (typeof logFetchError === 'function') {
+      try {
+        await logFetchError('run', err.message);
+      } catch (e) {
+        console.error('[run] logFetchError failed:', e);
+      }
     }
   }
-  console.log('Draw job executed at', now);
 }
 
 async function scheduleNext() {
-  const now = jakartaNow();
-  const schedules = await prisma.schedule.findMany();
-  let nextDraw = null;
-  for (const s of schedules) {
-    if (!s.drawTime) continue;
-    const [hour, minute] = s.drawTime.split(':').map(Number);
-    const candidate = new Date(now);
-    candidate.setHours(hour, minute, 0, 0);
-    if (candidate <= now) candidate.setDate(candidate.getDate() + 1);
-    if (!nextDraw || candidate < nextDraw) nextDraw = candidate;
+  try {
+    const now = jakartaNow();
+    let schedules = [];
+    try {
+      schedules = await prisma.schedule.findMany();
+    } catch (err) {
+      console.warn('[scheduleNext] prisma.schedule.findMany failed:', err);
+    }
+    let nextDraw = null;
+    for (const s of schedules) {
+      if (!s.drawTime) continue;
+      const [hour, minute] = s.drawTime.split(':').map(Number);
+      const candidate = new Date(now);
+      candidate.setHours(hour, minute, 0, 0);
+      if (candidate <= now) candidate.setDate(candidate.getDate() + 1);
+      if (!nextDraw || candidate < nextDraw) nextDraw = candidate;
+    }
+    const delay = nextDraw ? nextDraw.getTime() - now.getTime() : 60 * 1000;
+    setTimeout(async () => {
+      try {
+        await run();
+      } catch (err) {
+        console.error('[scheduleNext] run() failed:', err);
+        if (typeof logFetchError === 'function') {
+          try {
+            await logFetchError('run', err.message);
+          } catch (e) {
+            console.error('[scheduleNext] logFetchError failed:', e);
+          }
+        }
+      }
+      scheduleNext();
+    }, delay);
+  } catch (err) {
+    console.error('[scheduleNext] Error scheduling next job:', err);
+    if (typeof logFetchError === 'function') {
+      try {
+        await logFetchError('schedule', err.message);
+      } catch (e) {
+        console.error('[scheduleNext] logFetchError failed:', e);
+      }
+    }
+    setTimeout(scheduleNext, 60 * 1000);
   }
-  const delay = nextDraw ? nextDraw.getTime() - now.getTime() : 60 * 1000;
-  setTimeout(async () => {
-    await run();
-    scheduleNext();
-  }, delay);
 }
 
 if (require.main === module) {
