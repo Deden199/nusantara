@@ -2,11 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert');
 const path = require('path');
 
-function loadController(mockPrisma) {
+function loadController(mockPrisma, mockIO = { to() { return { emit() {} }; }, emit() {} }) {
   const dbPath = path.resolve(__dirname, '../src/config/database.js');
+  const ioPath = path.resolve(__dirname, '../src/io.js');
   const ctrlPath = path.resolve(__dirname, '../src/controllers/lottery.controller.js');
-  // Inject mock prisma into require cache before requiring controller
+  // Inject mocks into require cache before requiring controller
   require.cache[dbPath] = { exports: mockPrisma };
+  require.cache[ioPath] = { exports: { getIO: () => mockIO } };
   delete require.cache[ctrlPath];
   return require(ctrlPath);
 }
@@ -77,4 +79,61 @@ test('listPools returns schedule info', async () => {
   const bandung = body.find((c) => c.city === 'bandung');
   assert.equal(bandung.startsAt, null);
   assert.equal(bandung.isLive, false);
+});
+
+test('startLiveDraw returns 409 if city already active', async () => {
+  const mockPrisma = {};
+  const ctrl = loadController(mockPrisma);
+
+  // Prevent scheduled callbacks from running so the draw stays active
+  const origSetTimeout = global.setTimeout;
+  global.setTimeout = () => 0;
+  try {
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, { json() {} });
+    let status, body;
+    const res = {
+      status(code) {
+        status = code;
+        return this;
+      },
+      json(obj) {
+        body = obj;
+      },
+    };
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, res);
+    assert.equal(status, 409);
+    assert.deepEqual(body, { error: 'live draw already in progress' });
+  } finally {
+    global.setTimeout = origSetTimeout;
+  }
+});
+
+test('startLiveDraw allows new draw after completion', async () => {
+  const mockPrisma = {};
+  const ctrl = loadController(mockPrisma);
+
+  // Execute timers immediately to finalize draw
+  const origSetTimeout = global.setTimeout;
+  global.setTimeout = (fn) => {
+    fn();
+    return 0;
+  };
+  try {
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, { json() {} });
+    let status, body;
+    const res = {
+      status(code) {
+        status = code;
+        return this;
+      },
+      json(obj) {
+        body = obj;
+      },
+    };
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, res);
+    assert.equal(status, undefined);
+    assert.deepEqual(body, { message: 'live draw started', city: 'jakarta' });
+  } finally {
+    global.setTimeout = origSetTimeout;
+  }
 });
