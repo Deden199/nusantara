@@ -194,6 +194,7 @@ export default function LiveDrawPage() {
   const [countdown, setCountdown] = useState('');
   const [tickerItems, setTickerItems] = useState([]);
   const socketRef = useRef(null);
+  const startRequestedRef = useRef(false);
 
   // --- Normalize city item coming from API ({ city, startsAt, isLive }) ---
   const normalizeCity = (item) => {
@@ -251,6 +252,27 @@ export default function LiveDrawPage() {
     const t = setInterval(() => setCountdown(formatCountdown(nextStartAt)), 1000);
     return () => clearInterval(t);
   }, [nextStartAt]);
+
+  useEffect(() => {
+    startRequestedRef.current = false;
+  }, [selectedCity, nextStartAt]);
+
+  useEffect(() => {
+    if (
+      countdown === '00:00:00' &&
+      !prizes.currentPrize &&
+      selectedCity &&
+      !startRequestedRef.current
+    ) {
+      startRequestedRef.current = true;
+      const API_URL =
+        import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+      const cityId = selectedCity.id ?? selectedCity.name ?? selectedCity;
+      fetch(`${API_URL}/pools/${cityId}/live-draw`, { method: 'POST' }).catch(
+        console.error
+      );
+    }
+  }, [countdown, prizes.currentPrize, selectedCity]);
 
   // --- Socket setup ---
   useEffect(() => {
