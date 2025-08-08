@@ -25,7 +25,6 @@ export default function Header() {
           <Link to="/lucky" className="hover:text-gold transition">Generate Nomor</Link>
           <Link to="/stats" className="hover:text-gold transition">Hasil Sebelumnya</Link>
           <Link to="/schedule" className="hover:text-gold transition">Jadwal</Link>
-
           <Link to="/about" className="hover:text-gold transition">Tentang Kami</Link>
           <Link
             to="/livedraw"
@@ -36,7 +35,6 @@ export default function Header() {
             </svg>
             <span>Live Draw</span>
           </Link>
-
         </nav>
 
         {/* Mobile Toggle */}
@@ -51,10 +49,16 @@ export default function Header() {
       {/* Mobile Nav */}
       {open && (
         <nav className="md:hidden bg-primary bg-opacity-90 text-white px-4 pb-4 space-y-2">
-          {['Beranda','Lucky Number','Previous Results','Statistics','Schedule','About Us','How To Play'].map((label) => (
+          {[
+            { label: 'Beranda', to: '/' },
+            { label: 'Generate Nomor', to: '/lucky' },
+            { label: 'Hasil Sebelumnya', to: '/stats' },
+            { label: 'Jadwal', to: '/schedule' },
+            { label: 'Tentang Kami', to: '/about' },
+          ].map(({ label, to }) => (
             <Link
               key={label}
-              to={`/${label.toLowerCase().replace(/ /g,'')}`}
+              to={to}
               className="block py-2 hover:text-gold transition"
               onClick={() => setOpen(false)}
             >
