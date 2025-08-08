@@ -80,16 +80,22 @@ exports.latestByCity = async (req, res) => {
     const now = jakartaDate();
 
     const nextDrawDate = new Date(now);
-    nextDrawDate.setHours(drawHour, drawMinute, 0, 0);
-    if (nextDrawDate <= now) nextDrawDate.setDate(nextDrawDate.getDate() + 1);
+    nextDrawDate.setUTCHours(drawHour - 7, drawMinute, 0, 0);
+    if (nextDrawDate <= now)
+      nextDrawDate.setUTCDate(nextDrawDate.getUTCDate() + 1);
     nextDraw = nextDrawDate;
 
     const nextCloseDate = new Date(now);
-    nextCloseDate.setHours(closeHour, closeMinute, 0, 0);
-    if (nextCloseDate <= now) nextCloseDate.setDate(nextCloseDate.getDate() + 1);
+    nextCloseDate.setUTCHours(closeHour - 7, closeMinute, 0, 0);
+    if (nextCloseDate <= now)
+      nextCloseDate.setUTCDate(nextCloseDate.getUTCDate() + 1);
     nextClose = nextCloseDate;
 
-    res.json({ ...result, nextDraw, nextClose });
+    res.json({
+      ...result,
+      nextDraw: nextDraw.toISOString(),
+      nextClose: nextClose.toISOString(),
+    });
   } catch (err) {
     if (err.code === 'P1001' || err.code === 'P1002') {
       console.error(`[latestByCity] Database unavailable for city ${city}:`, err);
@@ -146,17 +152,21 @@ exports.latestMany = async (req, res) => {
           closeMinute <= 59
         ) {
           const nextD = new Date(now);
-          nextD.setHours(drawHour, drawMinute, 0, 0);
-          if (nextD <= now) nextD.setDate(nextD.getDate() + 1);
+          nextD.setUTCHours(drawHour - 7, drawMinute, 0, 0);
+          if (nextD <= now) nextD.setUTCDate(nextD.getUTCDate() + 1);
           nextDraw = nextD;
 
           const nextC = new Date(now);
-          nextC.setHours(closeHour, closeMinute, 0, 0);
-          if (nextC <= now) nextC.setDate(nextC.getDate() + 1);
+          nextC.setUTCHours(closeHour - 7, closeMinute, 0, 0);
+          if (nextC <= now) nextC.setUTCDate(nextC.getUTCDate() + 1);
           nextClose = nextC;
         }
       }
-      return { ...r, nextDraw, nextClose };
+      return {
+        ...r,
+        nextDraw: nextDraw ? nextDraw.toISOString() : null,
+        nextClose: nextClose ? nextClose.toISOString() : null,
+      };
     });
 
     res.json(enriched);
@@ -247,19 +257,21 @@ exports.overrideResults = async (req, res) => {
 
 
 function jakartaDate(input) {
-  // When called without argument, return current time in Asia/Jakarta
+  // Return current UTC time when called without arguments
   if (!input) {
-    const now = new Date();
-    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    return new Date(utc + 7 * 3600000); // GMT+7
+    return new Date();
   }
+
   // input dari <input type="datetime-local"> seperti "2025-07-21T04:55"
   const [datePart, timePart] = (input || '').split('T');
   // jika format tidak sesuai, fallback ke waktu saat ini
   if (!datePart || !timePart) return new Date();
 
-  // bentuk ISO dengan zona +07:00 (WIB)
-  return new Date(`${datePart}T${timePart}:00+07:00`);
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute] = timePart.split(':').map(Number);
+
+  // Convert Jakarta (UTC+7) time to UTC
+  return new Date(Date.UTC(year, month - 1, day, hour - 7, minute));
 }
 
 exports.login = (req, res) => {
