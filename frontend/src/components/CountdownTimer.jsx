@@ -1,19 +1,14 @@
 import { useEffect, useState } from 'react';
 
-const getJakartaNow = () =>
-  new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })
-  ).getTime();
-
 export default function CountdownTimer({ targetDate }) {
-  const [now, setNow] = useState(getJakartaNow());
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const id = setInterval(() => setNow(getJakartaNow()), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const diff = Math.max(0, targetDate - now);
+  const diff = Math.max(0, targetDate.getTime() - now);
   const hrs = Math.floor(diff / 3600000);
   const mins = Math.floor((diff % 3600000) / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
