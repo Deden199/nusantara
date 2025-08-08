@@ -11,12 +11,14 @@ exports.listPools = async (req, res) => {
     });
     res.json(cities.map(c => c.city));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[listPools] Error:', err);
+    res.status(500).json({ message: 'Failed to list pools', error: err.message });
   }
 };
 
 exports.latestByCity = async (req, res) => {
   const { city } = req.params;
+  if (!city) return res.status(400).json({ message: 'city required' });
   try {
     const result = await prisma.lotteryResult.findFirst({
       where: { city },
@@ -25,7 +27,8 @@ exports.latestByCity = async (req, res) => {
     if (!result) return res.status(404).json({ message: 'Not found' });
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(`[latestByCity] Error for city ${city}:`, err);
+    res.status(500).json({ message: 'Failed to fetch latest result', error: err.message });
   }
 };
 
@@ -38,7 +41,8 @@ exports.addPool = async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(`[addPool] Error creating pool for ${city}:`, err);
+    res.status(500).json({ message: 'Failed to add pool', error: err.message });
   }
 };
 
@@ -53,7 +57,8 @@ exports.overrideResults = async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(`[overrideResults] Error overriding results for ${city}:`, err);
+    res.status(500).json({ message: 'Failed to override results', error: err.message });
   }
 };
 
@@ -102,7 +107,8 @@ exports.listOverrides = async (req, res) => {
     });
     res.json(records);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[listOverrides] Error:', err);
+    res.status(500).json({ message: 'Failed to fetch overrides', error: err.message });
   }
 };
 
@@ -165,6 +171,6 @@ exports.getStats = async (req, res) => {
     });
   } catch (err) {
     console.error('[getStats] Error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ message: 'Failed to get stats', error: err.message });
   }
 };
