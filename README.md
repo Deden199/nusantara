@@ -21,6 +21,16 @@ Scheduler menggunakan loop `setTimeout` untuk membaca jadwal dari tabel `Schedul
 
 Beberapa menit sebelum waktu undian (`drawTime`), scheduler juga memanggil fungsi `startLiveDraw(city)` untuk menandai bahwa proses undian sedang berlangsung. Fitur ini memastikan bahwa undian langsung dimulai tepat waktu tanpa duplikasi jika scheduler dijalankan lebih dari sekali.
 
+## Live Draw Manual
+
+Admin dapat memulai sesi live draw secara manual melalui endpoint:
+
+```
+POST /api/pools/:city/live-draw
+```
+
+Server akan mengirim tiga ronde hadiah (pertama, kedua, ketiga) melalui Socket.IO. Event `prizeStart` menandakan ronde baru dan `drawNumber` mengirim setiap digit hadiah secara berurutan.
+
 ## Menambah Kota Baru
 
 Gunakan halaman Admin untuk menambah kota baru. Setiap tengah malam server akan membuat hasil undian otomatis.
