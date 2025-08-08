@@ -1,9 +1,9 @@
 // pages/LiveDrawPage.jsx
-import { useEffect, useState, Fragment, useRef } from 'react';
+import { useEffect, useState, Fragment, useRef, useMemo } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronUpDownIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { io as socketIO } from 'socket.io-client';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { fetchPools } from '../services/api';
@@ -14,6 +14,21 @@ const prizeLabels = {
   third: 'Hadiah Ketiga',
 };
 
+// --- Utils ---
+const parseDate = (v) => (v ? new Date(v) : null);
+const now = () => new Date();
+
+function formatCountdown(target) {
+  if (!target) return '';
+  const diff = Math.max(0, target - now());
+  const s = Math.floor(diff / 1000);
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+// --- Ball component (mobile-safe, responsive, extra glow) ---
 function Ball({ rolling, value }) {
   const [display, setDisplay] = useState(0);
 
@@ -34,7 +49,15 @@ function Ball({ rolling, value }) {
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-      className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold text-lg sm:text-xl shadow-lg border-2 border-white"
+      className={[
+        // ukuran dibuat fluid dan aman di mobile
+        'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 md:w-18 md:h-18',
+        'flex items-center justify-center rounded-full',
+        'bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold',
+        'text-lg xs:text-xl sm:text-2xl',
+        'shadow-[0_0_20px_rgba(255,255,255,0.35)] border-2 border-white',
+        rolling ? 'animate-pulse' : '',
+      ].join(' ')}
     >
       {display}
     </motion.div>
@@ -43,25 +66,76 @@ function Ball({ rolling, value }) {
 
 export default function LiveDrawPage() {
   const [cities, setCities] = useState([]);
-  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedCity, setSelectedCity] = useState(null);
   const [balls, setBalls] = useState(() =>
     Array.from({ length: 6 }, () => ({ value: null, rolling: false }))
   );
   const [prize, setPrize] = useState('');
+  const [nextStartAt, setNextStartAt] = useState(null);
+  const [countdown, setCountdown] = useState('');
+  const [tickerItems, setTickerItems] = useState([]);
   const socketRef = useRef(null);
   const prizeRef = useRef('');
 
-  // Fetch list of pools
+  // --- Normalize city item (support string OR object) ---
+  const normalizeCity = (item) => {
+    if (!item) return null;
+    if (typeof item === 'string') {
+      return { id: item, name: item, startsAt: null, isLive: false };
+    }
+    // expected shape: { id, name, startsAt, isLive, ... }
+    return {
+      id: item.id ?? item.name ?? item.city ?? JSON.stringify(item),
+      name: item.name ?? item.city ?? 'Unknown',
+      startsAt: parseDate(item.startsAt) || null,
+      isLive: Boolean(item.isLive),
+      raw: item,
+    };
+  };
+
+  // --- Sort: prioritize live / nearest to start time ---
+  const sortedCities = useMemo(() => {
+    const arr = cities.map(normalizeCity).filter(Boolean);
+    return arr.sort((a, b) => {
+      // Live first
+      if (a.isLive && !b.isLive) return -1;
+      if (!a.isLive && b.isLive) return 1;
+      // Then nearest upcoming (non-null startsAt, earlier first)
+      const aT = a.startsAt ? a.startsAt.getTime() : Infinity;
+      const bT = b.startsAt ? b.startsAt.getTime() : Infinity;
+      return aT - bT;
+    });
+  }, [cities]);
+
+  // --- Initial fetch + pick best city (live or nearest) ---
   useEffect(() => {
     async function load() {
-      const list = await fetchPools();
-      setCities(list);
-      if (list.length) setSelectedCity(list[0]);
+      const list = await fetchPools(); // can return strings or objects
+      setCities(Array.isArray(list) ? list : []);
     }
     load();
   }, []);
 
-  // Setup socket connection
+  useEffect(() => {
+    if (!sortedCities.length) return;
+    // pilih: live duluan, kalau tidak ada live, pilih start paling dekat
+    const best = sortedCities[0];
+    setSelectedCity(best);
+    setNextStartAt(best.startsAt || null);
+  }, [sortedCities]);
+
+  // --- Countdown (prioritaskan kota yg mau mulai) ---
+  useEffect(() => {
+    if (!nextStartAt) {
+      setCountdown('');
+      return;
+    }
+    setCountdown(formatCountdown(nextStartAt));
+    const t = setInterval(() => setCountdown(formatCountdown(nextStartAt)), 1000);
+    return () => clearInterval(t);
+  }, [nextStartAt]);
+
+  // --- Socket setup ---
   useEffect(() => {
     const apiOrigin = import.meta.env.VITE_API_URL
       ? new URL(import.meta.env.VITE_API_URL).origin
@@ -73,7 +147,7 @@ export default function LiveDrawPage() {
       prizeRef.current = prize;
       setPrize(prize);
       setBalls(Array.from({ length: 6 }, () => ({ value: null, rolling: false })));
-      setBalls(prev => {
+      setBalls((prev) => {
         const arr = [...prev];
         if (arr[0]) arr[0].rolling = true;
         return arr;
@@ -82,89 +156,235 @@ export default function LiveDrawPage() {
 
     socket.on('drawNumber', ({ prize: p, index, number }) => {
       if (p !== prizeRef.current) return;
-      setBalls(prev => {
+      setBalls((prev) => {
         const next = [...prev];
         next[index] = { value: number, rolling: false };
-        if (index + 1 < next.length) {
-          next[index + 1].rolling = true;
-        }
+        if (index + 1 < next.length) next[index + 1].rolling = true;
         return next;
       });
+      // tambahkan ke ticker (riwayat angka keluar)
+      setTickerItems((t) => [
+        { ts: Date.now(), label: `#${index + 1}: ${number}` },
+        ...t.slice(0, 9),
+      ]);
+    });
+
+    socket.on('liveMeta', ({ isLive, startsAt }) => {
+      // server optional: update meta agar countdown relevan
+      setNextStartAt(parseDate(startsAt) || null);
     });
 
     return () => socket.disconnect();
   }, []);
 
-  // When city changes, reset balls and subscribe
+  // --- (Re)join room ketika city berubah ---
   useEffect(() => {
     if (!selectedCity || !socketRef.current) return;
     setBalls(Array.from({ length: 6 }, () => ({ value: null, rolling: false })));
     setPrize('');
     prizeRef.current = '';
-    socketRef.current.emit?.('joinLive', selectedCity);
+    socketRef.current.emit?.('joinLive', selectedCity.id ?? selectedCity.name ?? selectedCity);
+    setNextStartAt(selectedCity.startsAt || null);
   }, [selectedCity]);
 
-  return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-900 via-red-800 to-red-900 text-gray-100">
-      <Header />
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-12 space-y-8">
-        <div className="w-full max-w-xs sm:max-w-sm">
-          <Listbox value={selectedCity} onChange={setSelectedCity}>
-            <div className="relative">
-              <Listbox.Button className="relative w-full cursor-pointer bg-gray-700 text-white py-2 pl-4 pr-10 text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                <span className="block truncate">{selectedCity || 'Pilih Kota'}</span>
-                <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <ChevronUpDownIcon className="h-5 w-5 text-gray-300" />
-                </span>
-              </Listbox.Button>
-              <Transition
-                as={Fragment}
-                leave="transition ease-in duration-100"
-                leaveFrom="opacity-100"
-                leaveTo="opacity-0"
-              >
-                <Listbox.Options className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto focus:outline-none">
-                  {cities.map((city, idx) => (
-                    <Listbox.Option
-                      key={idx}
-                      value={city}
-                      className={({ active }) =>
-                        `cursor-pointer select-none relative py-2 pl-10 pr-4 ${
-                          active ? 'bg-primary text-white' : 'text-gray-900'
-                        }`
-                      }
-                    >
-                      {({ selected }) => (
-                        <>
-                          <span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
-                            {city}
-                          </span>
-                          {selected && (
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary">
-                              <CheckIcon className="h-5 w-5" />
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </Listbox.Option>
-                  ))}
-                </Listbox.Options>
-              </Transition>
-            </div>
-          </Listbox>
-        </div>
-        {prize && (
-          <h2 className="text-2xl font-bold mt-4">
-            {prizeLabels[prize]}
-          </h2>
-        )}
+  const cityLabel = (c) =>
+    c?.name ||
+    c?.city ||
+    (typeof c === 'string' ? c : '') ||
+    'Pilih Kota';
 
-        <div className="flex flex-wrap justify-center gap-4 mt-8">
-          {balls.map((ball, idx) => (
-            <Ball key={idx} rolling={ball.rolling} value={ball.value} />
-          ))}
+  return (
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-red-950 text-gray-100">
+      <Header />
+
+      <main className="flex-1 px-4 py-6 sm:py-10">
+        {/* Live banner + countdown */}
+        <div className="max-w-4xl mx-auto w-full">
+          <motion.div
+            initial={{ y: -12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="rounded-2xl p-4 sm:p-5 mb-5 sm:mb-8 bg-gradient-to-r from-red-700 to-amber-600 shadow-xl"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                </span>
+                <span className="font-bold tracking-wide uppercase">Live Draw</span>
+              </div>
+              <div className="text-sm sm:text-base">
+                {nextStartAt ? (
+                  <span className="font-semibold">
+                    Mulai dalam <span className="tabular-nums">{countdown}</span>
+                  </span>
+                ) : (
+                  <span className="opacity-90">Menunggu jadwal dimulai…</span>
+                )}
+              </div>
+            </div>
+
+            {/* progress bar countdown (visual) */}
+            {nextStartAt && (
+              <motion.div
+                key={countdown} // re-animate per tick
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 1, ease: 'linear' }}
+                className="mt-3 h-1.5 rounded-full bg-white/30 overflow-hidden"
+              >
+                <div className="h-full w-full"></div>
+              </motion.div>
+            )}
+          </motion.div>
+        </div>
+
+        {/* City selector + next-up list */}
+        <div className="max-w-4xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="lg:col-span-2 rounded-2xl p-4 sm:p-5 bg-gray-800/60 backdrop-blur"
+          >
+            <div className="mb-3 text-sm opacity-80">Pilih Kota / Pool</div>
+            <Listbox value={selectedCity} onChange={setSelectedCity}>
+              <div className="relative">
+                <Listbox.Button className="relative w-full cursor-pointer bg-gray-700 text-white py-2.5 pl-4 pr-10 text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
+                  <span className="block truncate">{cityLabel(selectedCity)}</span>
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <ChevronUpDownIcon className="h-5 w-5 text-gray-300" />
+                  </span>
+                </Listbox.Button>
+                <Transition
+                  as={Fragment}
+                  leave="transition ease-in duration-100"
+                  leaveFrom="opacity-100"
+                  leaveTo="opacity-0"
+                >
+                  <Listbox.Options className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-72 overflow-auto focus:outline-none">
+                    {sortedCities.map((city, idx) => (
+                      <Listbox.Option
+                        key={city.id ?? idx}
+                        value={city}
+                        className={({ active }) =>
+                          `cursor-pointer select-none relative py-2 pl-10 pr-4 ${
+                            active ? 'bg-amber-500 text-white' : 'text-gray-900'
+                          }`
+                        }
+                      >
+                        {({ selected }) => (
+                          <>
+                            <span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
+                              {cityLabel(city)}
+                            </span>
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                              {selected ? (
+                                <CheckIcon className="h-5 w-5 text-amber-600" />
+                              ) : city.isLive ? (
+                                <span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>
+                              ) : city.startsAt ? (
+                                <span className="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
+                              ) : null}
+                            </span>
+                            {city.startsAt && (
+                              <span className="absolute inset-y-0 right-2 flex items-center text-xs opacity-70">
+                                {city.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Listbox.Option>
+                    ))}
+                  </Listbox.Options>
+                </Transition>
+              </div>
+            </Listbox>
+          </motion.div>
+
+          {/* Next-up / Jadwal Ringkas */}
+          <motion.div
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="rounded-2xl p-4 sm:p-5 bg-gray-800/60 backdrop-blur"
+          >
+            <div className="font-semibold mb-2">Prioritas Mulai</div>
+            <div className="space-y-2 max-h-48 overflow-auto pr-1">
+              {sortedCities.slice(0, 6).map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between text-sm bg-gray-700/50 rounded-lg px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    {c.isLive ? (
+                      <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                    ) : (
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                    )}
+                    <span>{c.name}</span>
+                  </div>
+                  <span className="opacity-80">
+                    {c.isLive ? 'Live' : c.startsAt ? c.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Ticker (riwayat angka keluar) */}
+        <div className="max-w-4xl mx-auto w-full mt-5 sm:mt-6">
+          <div className="overflow-hidden rounded-xl bg-gray-800/60">
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: '-100%' }}
+              transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+              className="whitespace-nowrap py-2 px-4 text-sm"
+            >
+              {tickerItems.length ? (
+                tickerItems.map((t) => (
+                  <span key={t.ts} className="mr-6 opacity-90">
+                    {t.label}
+                  </span>
+                ))
+              ) : (
+                <span className="opacity-70">Menunggu angka keluar…</span>
+              )}
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Prize title */}
+        <AnimatePresence>
+          {prize && (
+            <motion.h2
+              key={prize}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="max-w-4xl mx-auto w-full text-center text-2xl sm:text-3xl font-extrabold mt-6 sm:mt-8"
+            >
+              {prizeLabels[prize]}
+            </motion.h2>
+          )}
+        </AnimatePresence>
+
+        {/* BALLS (responsive, no clipping on mobile) */}
+        <div className="max-w-4xl mx-auto w-full mt-6 sm:mt-8">
+          <div
+            className={[
+              // grid > wrap, supaya tidak kepotong di mobile
+              'grid grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 gap-3 sm:gap-4',
+              'place-items-center',
+              'px-1 sm:px-2',
+            ].join(' ')}
+          >
+            {balls.map((ball, idx) => (
+              <Ball key={idx} rolling={ball.rolling} value={ball.value} />
+            ))}
+          </div>
         </div>
       </main>
+
       <Footer />
     </div>
   );
