@@ -4,6 +4,48 @@ const { getIO } = require('../io');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
+function computeLiveMeta(schedule) {
+  const now = jakartaDate();
+  let startsAt = null;
+  let isLive = false;
+
+  if (schedule && /^\d{2}:\d{2}$/.test(schedule.drawTime)) {
+    const [drawHour, drawMinute] = schedule.drawTime.split(':').map(Number);
+    const drawDate = new Date(now);
+    drawDate.setUTCHours(drawHour - 7, drawMinute, 0, 0);
+    if (drawDate <= now) drawDate.setUTCDate(drawDate.getUTCDate() + 1);
+    startsAt = drawDate.toISOString();
+
+    if (schedule.closeTime && /^\d{2}:\d{2}$/.test(schedule.closeTime)) {
+      const [closeHour, closeMinute] = schedule.closeTime.split(':').map(Number);
+      const closeDate = new Date(now);
+      closeDate.setUTCHours(closeHour - 7, closeMinute, 0, 0);
+      if (closeDate <= now) closeDate.setUTCDate(closeDate.getUTCDate() + 1);
+      isLive = now >= closeDate && now < drawDate;
+    }
+  }
+
+  return { isLive, startsAt };
+}
+
+async function emitLiveMeta(city, scheduleOverride) {
+  try {
+    const schedule =
+      scheduleOverride ||
+      (await prisma.schedule.findUnique({ where: { city } }));
+    const meta = computeLiveMeta(schedule);
+    const io = getIO();
+    io.to(city).emit('liveMeta', meta);
+  } catch (err) {
+    try {
+      const io = getIO();
+      io.to(city).emit('liveMeta', { isLive: false, startsAt: null });
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
 exports.listPools = async (req, res) => {
   try {
     const cities = await prisma.lotteryResult.findMany({
@@ -308,8 +350,15 @@ exports.startLiveDraw = async (req, res) => {
     { key: 'third', value: digitsFrom(req.body?.thirdPrize) },
   ];
 
+  const finalize = () => {
+    emitLiveMeta(city).catch(() => {});
+  };
+
   const drawPrize = (prizeIndex) => {
-    if (prizeIndex >= prizeDefs.length) return;
+    if (prizeIndex >= prizeDefs.length) {
+      finalize();
+      return;
+    }
     const prize = prizeDefs[prizeIndex];
     io.to(city).emit('prizeStart', { city, prize: prize.key });
     prize.value.forEach((num, idx) => {
@@ -327,6 +376,7 @@ exports.startLiveDraw = async (req, res) => {
     });
   };
 
+  emitLiveMeta(city).catch(() => {});
   drawPrize(0);
 
   res.json({ message: 'live draw started', city });
@@ -486,6 +536,7 @@ exports.createSchedule = async (req, res) => {
   }
   try {
     const schedule = await prisma.schedule.create({ data: { city, drawTime, closeTime } });
+    await emitLiveMeta(city, schedule);
     res.json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -498,6 +549,7 @@ exports.updateSchedule = async (req, res) => {
   if (!drawTime && !closeTime) return res.status(400).json({ message: 'drawTime or closeTime required' });
   try {
     const schedule = await prisma.schedule.update({ where: { city }, data: { drawTime, closeTime } });
+    await emitLiveMeta(city, schedule);
     res.json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -513,3 +565,5 @@ exports.deleteSchedule = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.emitLiveMeta = emitLiveMeta;
