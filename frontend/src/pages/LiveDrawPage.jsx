@@ -34,7 +34,7 @@ function Ball({ rolling, value }) {
       initial={{ opacity: 0, scale: 0.6 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-      className="w-16 h-16 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold text-xl shadow-lg border-2 border-white"
+      className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold text-lg sm:text-xl shadow-lg border-2 border-white"
     >
       {display}
     </motion.div>
@@ -159,7 +159,7 @@ export default function LiveDrawPage() {
           </h2>
         )}
 
-        <div className="flex space-x-4 mt-8">
+        <div className="flex flex-wrap justify-center gap-4 mt-8">
           {balls.map((ball, idx) => (
             <Ball key={idx} rolling={ball.rolling} value={ball.value} />
           ))}
