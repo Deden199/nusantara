@@ -69,6 +69,59 @@ exports.latestByCity = async (req, res) => {
     res.status(500).json({ error: 'internal server error' });
   }
 };
+
+// Fetch latest results for multiple cities at once
+exports.latestMany = async (req, res) => {
+  const citiesParam = req.query.cities;
+  const cities = citiesParam
+    ? citiesParam.split(',').map((c) => c.trim()).filter(Boolean)
+    : [];
+
+  try {
+    const results = await prisma.lotteryResult.findMany({
+      where: cities.length ? { city: { in: cities } } : undefined,
+      orderBy: [{ city: 'asc' }, { drawDate: 'desc' }],
+      distinct: ['city'],
+    });
+
+    const schedules = await prisma.schedule.findMany({
+      where: cities.length ? { city: { in: cities } } : undefined,
+    });
+    const scheduleMap = Object.fromEntries(schedules.map((s) => [s.city, s]));
+
+    const now = jakartaDate();
+    const enriched = results.map((r) => {
+      const schedule = scheduleMap[r.city];
+      let nextDraw = null;
+      if (schedule && /^\d{2}:\d{2}$/.test(schedule.drawTime)) {
+        const [hour, minute] = schedule.drawTime.split(':').map(Number);
+        if (
+          !Number.isNaN(hour) &&
+          !Number.isNaN(minute) &&
+          hour >= 0 &&
+          hour <= 23 &&
+          minute >= 0 &&
+          minute <= 59
+        ) {
+          const next = new Date(now);
+          next.setHours(hour, minute, 0, 0);
+          if (next <= now) next.setDate(next.getDate() + 1);
+          nextDraw = next;
+        }
+      }
+      return { ...r, nextDraw };
+    });
+
+    res.json(enriched);
+  } catch (err) {
+    if (err.code === 'P1001' || err.code === 'P1002') {
+      console.error('[latestMany] Database unavailable:', err);
+      return res.status(503).json({ error: 'database unavailable' });
+    }
+    console.error('[latestMany] Unexpected error:', err);
+    res.status(500).json({ error: 'internal server error' });
+  }
+};
 exports.deletePool = async (req, res) => {
   const { city } = req.params;
   try {
