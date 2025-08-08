@@ -1,8 +1,11 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const { getIO } = require('../io');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
 function computeLiveMeta(schedule) {
   const now = jakartaDate();
@@ -401,13 +404,34 @@ function jakartaDate(input) {
   return new Date(Date.UTC(year, month - 1, day, hour - 7, minute));
 }
 
-exports.login = (req, res) => {
+exports.login = async (req, res) => {
   const { username, password } = req.body;
-  if (username === 'admin' && password === '@nusantara12345') {
+
+  if (!ADMIN_USERNAME || !ADMIN_PASSWORD_HASH) {
+    return res
+      .status(500)
+      .json({ error: 'admin credentials are not configured' });
+  }
+
+  if (!username || !password) {
+    return res.status(400).json({ message: 'username and password required' });
+  }
+
+  if (username !== ADMIN_USERNAME) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    const match = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    if (!match) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '1d' });
     res.json({ token });
-  } else {
-    res.status(401).json({ message: 'Unauthorized' });
+  } catch (err) {
+    console.error('[login] Error:', err);
+    res.status(500).json({ error: 'internal server error' });
   }
 };
 
