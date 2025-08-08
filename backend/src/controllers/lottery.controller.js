@@ -359,7 +359,7 @@ exports.startLiveDraw = async (req, res) => {
 
   const drawPrize = (prizeIndex) => {
     if (prizeIndex >= prizeDefs.length) {
-      finalize();
+      setTimeout(finalize, 10 * 60 * 1000);
       return;
     }
     const prize = prizeDefs[prizeIndex];
@@ -373,9 +373,9 @@ exports.startLiveDraw = async (req, res) => {
           number: num,
         });
         if (idx === prize.value.length - 1) {
-          setTimeout(() => drawPrize(prizeIndex + 1), 1000);
+          setTimeout(() => drawPrize(prizeIndex + 1), 60000);
         }
-      }, idx * 1000);
+      }, idx * 60000);
     });
   };
 
