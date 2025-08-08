@@ -255,6 +255,36 @@ exports.overrideResults = async (req, res) => {
   }
 };
 
+// Orchestrate a live draw for a city.
+// Emits five numbers (random or provided) one by one every 2–3 minutes.
+exports.startLiveDraw = async (req, res) => {
+  const { city } = req.params;
+
+  // Allow predefined numbers via body; otherwise generate random digits
+  const bodyNumbers =
+    req.body && Array.isArray(req.body.numbers) && req.body.numbers.length === 5
+      ? req.body.numbers
+      : null;
+
+  const numbers = bodyNumbers || Array.from({ length: 5 }, () => Math.floor(Math.random() * 10));
+
+  const io = getIO();
+
+  // Recursive emitter with 2–3 minute intervals
+  const emitBall = (index) => {
+    if (index >= numbers.length) return;
+    io.emit('liveDraw', { city, ballIndex: index + 1, value: numbers[index] });
+    if (index + 1 < numbers.length) {
+      const delay = 120000 + Math.floor(Math.random() * 60000); // 2–3 minutes
+      setTimeout(() => emitBall(index + 1), delay);
+    }
+  };
+
+  emitBall(0);
+
+  res.json({ message: 'live draw started', city });
+};
+
 
 function jakartaDate(input) {
   // Return current UTC time when called without arguments
