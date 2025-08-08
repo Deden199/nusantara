@@ -11,7 +11,7 @@ import { fetchPools, fetchLatest, fetchAllLatest } from '../services/api';
 export default function Home() {
   const [cities, setCities] = useState([]);
   const [results, setResults] = useState({});
-  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedCity, setSelectedCity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -42,7 +42,7 @@ export default function Home() {
         setCities(cityList);
         if (cityList.length) setSelectedCity(cityList[0]);
 
-        const data = await fetchAllLatest(cityList);
+        const data = await fetchAllLatest(cityList.map(c => c.city));
         setResults(Object.fromEntries(data.map((item) => [item.city, item])));
         setError(null);
       } catch (err) {
@@ -55,7 +55,8 @@ export default function Home() {
     loadData();
   }, []);
 
-  const heroData = results[selectedCity] || {};
+  const cityName = selectedCity?.city || selectedCity || 'City';
+  const heroData = results[cityName] || {};
   const heroNextClose = heroData.nextClose ? new Date(heroData.nextClose) : null;
   const heroNextDraw = heroData.nextDraw ? new Date(heroData.nextDraw) : null;
   const showCountdown =
@@ -87,7 +88,7 @@ export default function Home() {
           {/* Info & Selector */}
           <div className="flex-1 space-y-6">
             <h1 className="text-4xl lg:text-5xl font-extrabold">
-              Result Angka <span className="text-primary">{selectedCity || 'City'}</span> Pool
+              Result Angka <span className="text-primary">{cityName}</span> Pool
             </h1>
 
             {showCountdown
@@ -127,7 +128,7 @@ export default function Home() {
             <Listbox value={selectedCity} onChange={setSelectedCity}>
               <div className="relative mt-2 w-full max-w-xs sm:max-w-sm">
                 <Listbox.Button className="relative w-full cursor-pointer bg-gray-700 text-white py-2 pl-4 pr-10 text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                  <span className="block truncate">{selectedCity || 'Pilih Kota'}</span>
+                  <span className="block truncate">{selectedCity?.city || selectedCity || 'Pilih Kota'}</span>
                   <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <ChevronUpDownIcon className="h-5 w-5 text-gray-300" />
                   </span>
@@ -143,9 +144,9 @@ export default function Home() {
                   leaveTo="opacity-0 scale-95"
                 >
                   <Listbox.Options className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto focus:outline-none">
-                    {cities.map((city, idx) => (
+                    {cities.map((city) => (
                       <Listbox.Option
-                        key={idx}
+                        key={city.city}
                         value={city}
                         className={({ active }) =>
                           `cursor-pointer select-none relative py-2 pl-10 pr-4 ${
@@ -156,7 +157,7 @@ export default function Home() {
                         {({ selected }) => (
                           <>
                             <span className={`block truncate ${selected ? 'font-semibold' : 'font-normal'}`}>
-                              {city}
+                              {city.city}
                             </span>
                             {selected && (
                               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary">
@@ -177,7 +178,7 @@ export default function Home() {
           <div className="w-full lg:w-1/2">
             {loading
               ? <div className="w-full h-64 bg-gray-700 animate-pulse rounded-2xl" />
-              : <CityPoolCard city={selectedCity} drawDate={heroData.drawDate}                firstPrize={heroData.firstPrize}
+              : <CityPoolCard city={cityName} drawDate={heroData.drawDate}                firstPrize={heroData.firstPrize}
                 secondPrize={heroData.secondPrize}
                 thirdPrize={heroData.thirdPrize} numbers={heroNumbers} />
             }
@@ -200,15 +201,23 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {cities.map((city) => {
-              const data = results[city] || {};
-               const nums = [
+              const data = results[city.city] || {};
+              const nums = [
                 data.firstPrize,
                 data.secondPrize,
                 data.thirdPrize,
               ].filter(Boolean);
-              return <CityPoolCard key={city} city={city} drawDate={data.drawDate}                  firstPrize={data.firstPrize}
+              return (
+                <CityPoolCard
+                  key={city.city}
+                  city={city.city}
+                  drawDate={data.drawDate}
+                  firstPrize={data.firstPrize}
                   secondPrize={data.secondPrize}
-                  thirdPrize={data.thirdPrize} numbers={nums} />;
+                  thirdPrize={data.thirdPrize}
+                  numbers={nums}
+                />
+              );
             })}
           </div>
         )}
