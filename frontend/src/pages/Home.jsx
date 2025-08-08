@@ -39,11 +39,26 @@ export default function Home() {
         setCities(cityList);
         if (cityList.length) setSelectedCity(cityList[0]);
 
-        const pairs = await Promise.all(
-          cityList.map(async (city) => [city, await fetchLatest(city)])
+        const settled = await Promise.allSettled(
+          cityList.map((city) => fetchLatest(city))
         );
-        setResults(Object.fromEntries(pairs));
-        setError(null);
+
+        const successEntries = [];
+        const errorMessages = [];
+
+        settled.forEach((res, idx) => {
+          const city = cityList[idx];
+          if (res.status === 'fulfilled') {
+            successEntries.push([city, res.value]);
+          } else {
+            errorMessages.push(
+              `Failed to load ${city}: ${res.reason?.message || res.reason}`
+            );
+          }
+        });
+
+        setResults(Object.fromEntries(successEntries));
+        setError(errorMessages.length ? errorMessages.join('; ') : null);
       } catch (err) {
         console.error('Failed to load pools:', err);
         setError(err.message || 'Failed to load data');
