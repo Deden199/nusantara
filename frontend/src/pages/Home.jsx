@@ -8,9 +8,7 @@ import { fetchPools, fetchLatest } from '../services/api';
 export default function Home() {
   const [cities, setCities] = useState([]);
   const [results, setResults] = useState({});
-  const [nextDrawTimes, setNextDrawTimes] = useState({});
   const [loading, setLoading] = useState(true);
-  const dummyNextDraw = new Date(Date.now() + 60 * 60 * 1000); // 1 jam dari sekarang
 
   // Ambil daftar kota dan hasil + nextDraw per kota
   useEffect(() => {
@@ -23,16 +21,13 @@ export default function Home() {
       ).then(pairs => {
         const map = Object.fromEntries(pairs);
         setResults(map);
-        // extract nextDraw untuk hero: pakai kota pertama
-        if (pairs.length) {
-          const [, firstData] = pairs[0];
-          setNextDrawTimes(prev => ({ ...prev, hero: firstData.nextDraw }));
-        }
       }).finally(() => setLoading(false));
     });
   }, []);
 
-  const heroNextDraw = nextDrawTimes.hero ? new Date(nextDrawTimes.hero) : null;
+  const heroNextDraw = results[cities[0]]?.nextDraw
+    ? new Date(results[cities[0]].nextDraw)
+    : null;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
