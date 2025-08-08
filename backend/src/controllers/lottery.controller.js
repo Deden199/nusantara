@@ -9,6 +9,8 @@ const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
 // track timers for result expiration per city
 const resultExpireTimers = new Map();
+// track cities that currently have an active live draw
+const activeLiveDraws = new Set();
 
 function computeLiveMeta(schedule) {
   const now = jakartaDate();
@@ -355,52 +357,67 @@ exports.overrideResults = async (req, res) => {
 // Each prize consists of six digits sent sequentially via Socket.IO.
 exports.startLiveDraw = async (req, res) => {
   const { city } = req.params;
-  const io = getIO();
 
-  // Helper to build an array of 6 digits from body or random number
-  const digitsFrom = (src) => {
-    const str = typeof src === 'string' && /^\d{6}$/.test(src)
-      ? src
-      : String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
-    return str.split('').map((d) => Number(d));
-  };
+  if (activeLiveDraws.has(city)) {
+    return res.status(409).json({ error: 'live draw already in progress' });
+  }
 
-  const prizeDefs = [
-    { key: 'first', value: digitsFrom(req.body?.firstPrize) },
-    { key: 'second', value: digitsFrom(req.body?.secondPrize) },
-    { key: 'third', value: digitsFrom(req.body?.thirdPrize) },
-  ];
+  activeLiveDraws.add(city);
 
-  const finalize = () => {
+  try {
+    const io = getIO();
+
+    // Helper to build an array of 6 digits from body or random number
+    const digitsFrom = (src) => {
+      const str =
+        typeof src === 'string' && /^\d{6}$/.test(src)
+          ? src
+          : String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+      return str.split('').map((d) => Number(d));
+    };
+
+    const prizeDefs = [
+      { key: 'first', value: digitsFrom(req.body?.firstPrize) },
+      { key: 'second', value: digitsFrom(req.body?.secondPrize) },
+      { key: 'third', value: digitsFrom(req.body?.thirdPrize) },
+    ];
+
+    const finalize = () => {
+      activeLiveDraws.delete(city);
+      emitLiveMeta(city).catch(() => {});
+    };
+
+    const drawPrize = (prizeIndex) => {
+      if (prizeIndex >= prizeDefs.length) {
+        setTimeout(finalize, 10 * 60 * 1000);
+        return;
+      }
+      const prize = prizeDefs[prizeIndex];
+      io.to(city).emit('prizeStart', { city, prize: prize.key });
+      prize.value.forEach((num, idx) => {
+        setTimeout(() => {
+          io.to(city).emit('drawNumber', {
+            city,
+            prize: prize.key,
+            index: idx,
+            number: num,
+          });
+          if (idx === prize.value.length - 1) {
+            setTimeout(() => drawPrize(prizeIndex + 1), 60000);
+          }
+        }, idx * 60000);
+      });
+    };
+
     emitLiveMeta(city).catch(() => {});
-  };
+    drawPrize(0);
 
-  const drawPrize = (prizeIndex) => {
-    if (prizeIndex >= prizeDefs.length) {
-      setTimeout(finalize, 10 * 60 * 1000);
-      return;
-    }
-    const prize = prizeDefs[prizeIndex];
-    io.to(city).emit('prizeStart', { city, prize: prize.key });
-    prize.value.forEach((num, idx) => {
-      setTimeout(() => {
-        io.to(city).emit('drawNumber', {
-          city,
-          prize: prize.key,
-          index: idx,
-          number: num,
-        });
-        if (idx === prize.value.length - 1) {
-          setTimeout(() => drawPrize(prizeIndex + 1), 60000);
-        }
-      }, idx * 60000);
-    });
-  };
-
-  emitLiveMeta(city).catch(() => {});
-  drawPrize(0);
-
-  res.json({ message: 'live draw started', city });
+    res.json({ message: 'live draw started', city });
+  } catch (err) {
+    activeLiveDraws.delete(city);
+    console.error('[startLiveDraw] Error:', err);
+    res.status(500).json({ error: 'internal server error' });
+  }
 };
 
 
