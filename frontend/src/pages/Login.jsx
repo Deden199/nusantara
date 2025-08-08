@@ -22,7 +22,7 @@ export default function Login() {
         setError(res.message || 'Login gagal');
       }
     } catch (err) {
-      setError('Terjadi kesalahan jaringan');
+      setError(err.message || 'Login gagal');
     }
   };
 

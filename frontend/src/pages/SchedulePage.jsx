@@ -5,9 +5,17 @@ import { fetchPublicSchedules } from '../services/api';
 
 export default function SchedulePage() {
   const [schedules, setSchedules] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchPublicSchedules().then(setSchedules).catch(console.error);
+    (async () => {
+      try {
+        const data = await fetchPublicSchedules();
+        setSchedules(data);
+      } catch (err) {
+        setError(err.message || 'Gagal memuat jadwal');
+      }
+    })();
   }, []);
 
   return (
@@ -15,6 +23,7 @@ export default function SchedulePage() {
       <Header />
       <main className="flex-grow max-w-2xl mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-center mb-6">Jadwal Penutupan &amp; Undian</h1>
+        {error && <p className="text-red-600 text-center mb-4">{error}</p>}
         <div className="overflow-x-auto bg-white shadow rounded-lg">
           <table className="min-w-full">
             <thead>
