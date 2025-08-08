@@ -64,7 +64,7 @@ export default function Home() {
         setError(errorMessages.length ? errorMessages.join('; ') : null);
       } catch (err) {
         console.error('Failed to load pools:', err);
-        setError(err.message || 'Failed to load data');
+        setError(`Failed to load pools: ${err.message || 'Unknown error'}`);
       } finally {
         setLoading(false);
       }

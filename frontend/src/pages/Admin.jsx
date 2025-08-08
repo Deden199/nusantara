@@ -58,7 +58,9 @@ export default function Admin() {
       .catch(err => console.error(err));
     fetchPools(token)
       .then(data => setPools(data))
-      .catch(err => console.error(err));
+      .catch(err =>
+        setMessage({ text: err.message || 'Gagal memuat daftar kota', type: 'error' })
+      );
     fetchRecentOverrides(token)
       .then(data => setOverrides(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
