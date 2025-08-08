@@ -202,6 +202,23 @@ export default function LiveDrawPage() {
   const startRequestedRef = useRef(false);
   const [error, setError] = useState(null);
 
+  const startLiveDraw = async () => {
+    if (!selectedCity) return;
+    startRequestedRef.current = true;
+    setError(null);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+    const cityId = selectedCity.id ?? selectedCity.name ?? selectedCity;
+    try {
+      const res = await fetch(`${API_URL}/pools/${cityId}/live-draw`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Failed to start live draw');
+    } catch (err) {
+      setError(err.message);
+      startRequestedRef.current = false; // allow retry
+    }
+  };
+
   // --- Normalize city item coming from API ({ city, startsAt, isLive }) ---
   const normalizeCity = (item) => {
     if (!item) return null;
@@ -302,13 +319,7 @@ export default function LiveDrawPage() {
       selectedCity &&
       !startRequestedRef.current
     ) {
-      startRequestedRef.current = true;
-      const API_URL =
-        import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-      const cityId = selectedCity.id ?? selectedCity.name ?? selectedCity;
-      fetch(`${API_URL}/pools/${cityId}/live-draw`, { method: 'POST' }).catch(
-        console.error
-      );
+      startLiveDraw();
     }
   }, [countdown, prizes.currentPrize, selectedCity]);
 
@@ -385,10 +396,7 @@ export default function LiveDrawPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-red-950 text-gray-100">
       <Header />
-      {error && (
-        <div className="bg-red-100 text-red-700 text-center py-2">{error}</div>
-      )}
-      <main className="flex-1 px-4 py-6 sm:py-10">
+        <main className="flex-1 px-4 py-6 sm:py-10">
         {/* Live banner + countdown */}
         <div className="max-w-4xl mx-auto w-full">
           <motion.div
@@ -416,19 +424,33 @@ export default function LiveDrawPage() {
             </div>
 
             {/* progress bar countdown (visual) */}
-            {nextStartAt && (
-              <motion.div
-                key={countdown} // re-animate per tick
-                initial={{ width: '0%' }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 1, ease: 'linear' }}
-                className="mt-3 h-1.5 rounded-full bg-white/30 overflow-hidden"
-              >
-                <div className="h-full w-full"></div>
-              </motion.div>
-            )}
-          </motion.div>
-        </div>
+              {nextStartAt && (
+                <motion.div
+                  key={countdown} // re-animate per tick
+                  initial={{ width: '0%' }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 1, ease: 'linear' }}
+                  className="mt-3 h-1.5 rounded-full bg-white/30 overflow-hidden"
+                >
+                  <div className="h-full w-full"></div>
+                </motion.div>
+              )}
+
+              {error && (
+                <div className="mt-3 text-center">
+                  <div className="text-red-100 font-semibold">{error}</div>
+                  {countdown === '00:00:00' && !prizes.currentPrize && (
+                    <button
+                      onClick={startLiveDraw}
+                      className="mt-2 px-3 py-1 text-sm rounded bg-red-800 text-white"
+                    >
+                      Retry
+                    </button>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </div>
 
         {/* City selector + next-up list */}
         <div className="max-w-4xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
