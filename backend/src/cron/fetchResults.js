@@ -1,5 +1,5 @@
 const prisma = require('../config/database');
-const { logFetchError } = require('../controllers/lottery.controller');
+const { logFetchError, emitLiveMeta } = require('../controllers/lottery.controller');
 const { startLiveDraw } = require('../liveDraw');
 
 // lead time in minutes before draw when live draw should start
@@ -50,6 +50,7 @@ async function run() {
         }
         // end live draw once the result is processed
         activeLiveDraws.delete(s.city);
+        await emitLiveMeta(s.city, s);
       }
     }
     console.log('Draw job executed at', now);
