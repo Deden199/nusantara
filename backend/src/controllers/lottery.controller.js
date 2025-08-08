@@ -23,23 +23,41 @@ exports.latestByCity = async (req, res) => {
       where: { city },
       orderBy: { drawDate: 'desc' },
     });
-    if (!result) return res.status(404).json({ message: 'Not found' });
-    const schedule = await prisma.schedule.findUnique({ where: { city } });
-    let nextDraw = null;
-    if (schedule?.drawTime) {
-      if (!/^\d{2}:\d{2}$/.test(schedule.drawTime)) {
-        console.error(`Invalid drawTime format for city ${city}: ${schedule.drawTime}`);
-        return res.status(400).json({ message: 'Invalid drawTime format' });
-      }
-      const [hour, minute] = schedule.drawTime.split(':').map(Number);
-      const now = jakartaDate();
-      const next = new Date(now);
-      next.setHours(hour, minute, 0, 0);
-      if (next <= now) next.setDate(next.getDate() + 1);
-      nextDraw = next;
+    if (!result) {
+      console.warn(`No lottery result found for city ${city}`);
+      return res.status(404).json({ message: 'Not found' });
     }
+    const schedule = await prisma.schedule.findUnique({ where: { city } });
+    if (!schedule || !schedule.drawTime) {
+      console.warn(`No schedule found for city ${city}`);
+      return res.status(404).json({ message: 'Schedule not found' });
+    }
+    let nextDraw = null;
+    if (!/^\d{2}:\d{2}$/.test(schedule.drawTime)) {
+      console.error(`Invalid drawTime format for city ${city}: ${schedule.drawTime}`);
+      return res.status(400).json({ message: 'Invalid drawTime format' });
+    }
+    const [hour, minute] = schedule.drawTime.split(':').map(Number);
+    if (
+      Number.isNaN(hour) ||
+      Number.isNaN(minute) ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      console.error(`Invalid drawTime value for city ${city}: ${schedule.drawTime}`);
+      return res.status(400).json({ message: 'Invalid drawTime value' });
+    }
+    const now = jakartaDate();
+    const next = new Date(now);
+    next.setHours(hour, minute, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    nextDraw = next;
     res.json({ ...result, nextDraw });
-  } catch (err) {    res.status(500).json({ error: err.message });
+  } catch (err) {
+    console.error(`[latestByCity] Error processing city ${city}:`, err);
+    res.status(500).json({ error: err.message });
   }
 };
 exports.deletePool = async (req, res) => {
