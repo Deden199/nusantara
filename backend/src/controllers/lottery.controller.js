@@ -175,9 +175,6 @@ exports.authMiddleware = (req, res, next) => {
     res.status(401).json({ message: 'Invalid token' });
   }
 };
-exports.logFetchError = async (city, message) => {
-  await prisma.fetchError.create({ data: { city, message } });
-};
 exports.listAllHistory = async (req, res) => {
   try {
     const records = await prisma.lotteryResult.findMany({
