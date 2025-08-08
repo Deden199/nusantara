@@ -24,6 +24,7 @@ import {
     deletePool,
 
 } from '../services/api';
+import { formatTime, formatDateTime } from '../utils/time';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -309,7 +310,7 @@ function OverrideTable({ data }) {
           {data.map((o,i) => (
             <tr key={i} className={i%2===0 ? 'bg-white' : 'bg-gray-50'}>
               <td className="px-4 py-2">{o.city}</td>
-              <td className="px-4 py-2">{new Date(o.time).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</td>
+              <td className="px-4 py-2">{formatDateTime(o.time)}</td>
               <td className="px-4 py-2">{o.oldNumbers}</td>
               <td className="px-4 py-2">{o.newNumbers}</td>
       <td className="px-4 py-2">{o.adminUsername}</td>
@@ -373,8 +374,8 @@ function ScheduleTable({ data, onDelete }) {
           {data.map((s, i) => (
             <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
               <td className="px-4 py-2">{s.city}</td>
-              <td className="px-4 py-2">{s.closeTime}</td>
-              <td className="px-4 py-2">{s.drawTime}</td>
+              <td className="px-4 py-2">{formatTime(s.closeTime)}</td>
+              <td className="px-4 py-2">{formatTime(s.drawTime)}</td>
               <td className="px-4 py-2">
                 <button
                   onClick={() => onDelete(s.city)}
