@@ -9,6 +9,9 @@ export async function fetchPools() {
 
 export async function fetchLatest(city) {
   const res = await fetch(`${API_URL}/pools/${city}/latest`);
+  if (!res.ok) {
+    throw new Error(res.statusText);
+  }
   const data = await res.json();
   // ensure nextDraw gets passed along
   return {

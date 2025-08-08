@@ -13,6 +13,7 @@ export default function Home() {
   const [results, setResults] = useState({});
   const [selectedCity, setSelectedCity] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const socket = socketIO(import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000');
@@ -20,8 +21,10 @@ export default function Home() {
       try {
         const latest = await fetchLatest(city);
         setResults(prev => ({ ...prev, [city]: latest }));
+        setError(null);
       } catch (err) {
         console.error('Failed to update results for', city, err);
+        setError(err.message || 'Failed to update results');
       }
     });
     return () => {
@@ -40,8 +43,10 @@ export default function Home() {
           cityList.map(async (city) => [city, await fetchLatest(city)])
         );
         setResults(Object.fromEntries(pairs));
+        setError(null);
       } catch (err) {
         console.error('Failed to load pools:', err);
+        setError(err.message || 'Failed to load data');
       } finally {
         setLoading(false);
       }
@@ -62,6 +67,11 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
+      {error && (
+        <div className="bg-red-100 text-red-700 text-center py-2">
+          {error}
+        </div>
+      )}
 
       {/* Hero Section */}
       <section
