@@ -195,16 +195,15 @@ export default function LiveDrawPage() {
   const [tickerItems, setTickerItems] = useState([]);
   const socketRef = useRef(null);
 
-  // --- Normalize city item (support string OR object) ---
+  // --- Normalize city item coming from API ({ city, startsAt, isLive }) ---
   const normalizeCity = (item) => {
     if (!item) return null;
     if (typeof item === 'string') {
       return { id: item, name: item, startsAt: null, isLive: false };
     }
-    // expected shape: { id, name, startsAt, isLive, ... }
     return {
-      id: item.id ?? item.name ?? item.city ?? JSON.stringify(item),
-      name: item.name ?? item.city ?? 'Unknown',
+      id: item.city || item.id || item.name || JSON.stringify(item),
+      name: item.city || item.name || 'Unknown',
       startsAt: parseDate(item.startsAt) || null,
       isLive: Boolean(item.isLive),
       raw: item,
@@ -228,7 +227,7 @@ export default function LiveDrawPage() {
   // --- Initial fetch + pick best city (live or nearest) ---
   useEffect(() => {
     async function load() {
-      const list = await fetchPools(); // can return strings or objects
+      const list = await fetchPools();
       setCities(Array.isArray(list) ? list : []);
     }
     load();

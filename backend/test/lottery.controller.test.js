@@ -52,3 +52,29 @@ test('latestByCity returns 400 when drawTime is invalid', async () => {
   assert.equal(statusCode, 400);
   assert.deepEqual(body, { message: 'Invalid drawTime value' });
 });
+
+test('listPools returns schedule info', async () => {
+  const mockPrisma = {
+    lotteryResult: {
+      findMany: async () => [{ city: 'jakarta' }, { city: 'bandung' }],
+    },
+    schedule: {
+      findMany: async () => [
+        { city: 'jakarta', drawTime: '10:00', closeTime: '09:00' },
+      ],
+    },
+  };
+  const ctrl = loadController(mockPrisma);
+  let body;
+  const res = { json(obj) { body = obj; } };
+  await ctrl.listPools({}, res);
+  assert.equal(Array.isArray(body), true);
+  assert.equal(body.length, 2);
+  const jakarta = body.find((c) => c.city === 'jakarta');
+  assert.ok(jakarta.startsAt);
+  assert.ok(Date.parse(jakarta.startsAt));
+  assert.strictEqual(typeof jakarta.isLive, 'boolean');
+  const bandung = body.find((c) => c.city === 'bandung');
+  assert.equal(bandung.startsAt, null);
+  assert.equal(bandung.isLive, false);
+});
