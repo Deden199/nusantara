@@ -33,33 +33,63 @@ exports.latestByCity = async (req, res) => {
       return res.status(404).json({ error: 'result missing' });
     }
     const schedule = await prisma.schedule.findUnique({ where: { city } });
-    if (!schedule || !schedule.drawTime) {
+    if (!schedule || !schedule.drawTime || !schedule.closeTime) {
       console.warn(`No schedule found for city ${city}`);
       return res.status(404).json({ error: 'schedule missing' });
     }
+
     let nextDraw = null;
+    let nextClose = null;
+
     if (!/^\d{2}:\d{2}$/.test(schedule.drawTime)) {
       console.error(`Invalid drawTime format for city ${city}: ${schedule.drawTime}`);
       return res.status(400).json({ message: 'Invalid drawTime format' });
     }
-    const [hour, minute] = schedule.drawTime.split(':').map(Number);
+    if (!/^\d{2}:\d{2}$/.test(schedule.closeTime)) {
+      console.error(`Invalid closeTime format for city ${city}: ${schedule.closeTime}`);
+      return res.status(400).json({ message: 'Invalid closeTime format' });
+    }
+
+    const [drawHour, drawMinute] = schedule.drawTime.split(':').map(Number);
+    const [closeHour, closeMinute] = schedule.closeTime.split(':').map(Number);
+
     if (
-      Number.isNaN(hour) ||
-      Number.isNaN(minute) ||
-      hour < 0 ||
-      hour > 23 ||
-      minute < 0 ||
-      minute > 59
+      Number.isNaN(drawHour) ||
+      Number.isNaN(drawMinute) ||
+      drawHour < 0 ||
+      drawHour > 23 ||
+      drawMinute < 0 ||
+      drawMinute > 59
     ) {
       console.error(`Invalid drawTime value for city ${city}: ${schedule.drawTime}`);
       return res.status(400).json({ message: 'Invalid drawTime value' });
     }
+
+    if (
+      Number.isNaN(closeHour) ||
+      Number.isNaN(closeMinute) ||
+      closeHour < 0 ||
+      closeHour > 23 ||
+      closeMinute < 0 ||
+      closeMinute > 59
+    ) {
+      console.error(`Invalid closeTime value for city ${city}: ${schedule.closeTime}`);
+      return res.status(400).json({ message: 'Invalid closeTime value' });
+    }
+
     const now = jakartaDate();
-    const next = new Date(now);
-    next.setHours(hour, minute, 0, 0);
-    if (next <= now) next.setDate(next.getDate() + 1);
-    nextDraw = next;
-    res.json({ ...result, nextDraw });
+
+    const nextDrawDate = new Date(now);
+    nextDrawDate.setHours(drawHour, drawMinute, 0, 0);
+    if (nextDrawDate <= now) nextDrawDate.setDate(nextDrawDate.getDate() + 1);
+    nextDraw = nextDrawDate;
+
+    const nextCloseDate = new Date(now);
+    nextCloseDate.setHours(closeHour, closeMinute, 0, 0);
+    if (nextCloseDate <= now) nextCloseDate.setDate(nextCloseDate.getDate() + 1);
+    nextClose = nextCloseDate;
+
+    res.json({ ...result, nextDraw, nextClose });
   } catch (err) {
     if (err.code === 'P1001' || err.code === 'P1002') {
       console.error(`[latestByCity] Database unavailable for city ${city}:`, err);
@@ -93,23 +123,40 @@ exports.latestMany = async (req, res) => {
     const enriched = results.map((r) => {
       const schedule = scheduleMap[r.city];
       let nextDraw = null;
-      if (schedule && /^\d{2}:\d{2}$/.test(schedule.drawTime)) {
-        const [hour, minute] = schedule.drawTime.split(':').map(Number);
+      let nextClose = null;
+      if (
+        schedule &&
+        /^\d{2}:\d{2}$/.test(schedule.drawTime) &&
+        /^\d{2}:\d{2}$/.test(schedule.closeTime)
+      ) {
+        const [drawHour, drawMinute] = schedule.drawTime.split(':').map(Number);
+        const [closeHour, closeMinute] = schedule.closeTime.split(':').map(Number);
         if (
-          !Number.isNaN(hour) &&
-          !Number.isNaN(minute) &&
-          hour >= 0 &&
-          hour <= 23 &&
-          minute >= 0 &&
-          minute <= 59
+          !Number.isNaN(drawHour) &&
+          !Number.isNaN(drawMinute) &&
+          drawHour >= 0 &&
+          drawHour <= 23 &&
+          drawMinute >= 0 &&
+          drawMinute <= 59 &&
+          !Number.isNaN(closeHour) &&
+          !Number.isNaN(closeMinute) &&
+          closeHour >= 0 &&
+          closeHour <= 23 &&
+          closeMinute >= 0 &&
+          closeMinute <= 59
         ) {
-          const next = new Date(now);
-          next.setHours(hour, minute, 0, 0);
-          if (next <= now) next.setDate(next.getDate() + 1);
-          nextDraw = next;
+          const nextD = new Date(now);
+          nextD.setHours(drawHour, drawMinute, 0, 0);
+          if (nextD <= now) nextD.setDate(nextD.getDate() + 1);
+          nextDraw = nextD;
+
+          const nextC = new Date(now);
+          nextC.setHours(closeHour, closeMinute, 0, 0);
+          if (nextC <= now) nextC.setDate(nextC.getDate() + 1);
+          nextClose = nextC;
         }
       }
-      return { ...r, nextDraw };
+      return { ...r, nextDraw, nextClose };
     });
 
     res.json(enriched);

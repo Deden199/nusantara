@@ -26,10 +26,31 @@ export default function SchedulePage() {
             </thead>
             <tbody>
               {schedules.map((s, i) => (
-                <tr key={s.city} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <tr
+                  key={s.city}
+                  className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                >
                   <td className="px-4 py-2">{s.city}</td>
-                  <td className="px-4 py-2">{s.closeTime}</td>
-                  <td className="px-4 py-2">{s.drawTime}</td>
+                  <td className="px-4 py-2">
+                    {new Date(`1970-01-01T${s.closeTime}:00+07:00`).toLocaleTimeString(
+                      'id-ID',
+                      {
+                        timeZone: 'Asia/Jakarta',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      },
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {new Date(`1970-01-01T${s.drawTime}:00+07:00`).toLocaleTimeString(
+                      'id-ID',
+                      {
+                        timeZone: 'Asia/Jakarta',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      },
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
