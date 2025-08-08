@@ -18,6 +18,7 @@ export async function fetchLatest(city) {
     ...data,
     numbers: [data.firstPrize, data.secondPrize, data.thirdPrize],
     nextDraw: data.nextDraw,
+    nextClose: data.nextClose,
   };
 }
 
@@ -33,6 +34,7 @@ export async function fetchAllLatest(cities = []) {
     ...item,
     numbers: [item.firstPrize, item.secondPrize, item.thirdPrize],
     nextDraw: item.nextDraw,
+    nextClose: item.nextClose,
   }));
 }
 // Admin

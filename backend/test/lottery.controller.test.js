@@ -38,7 +38,7 @@ test('latestByCity returns 400 when drawTime is invalid', async () => {
       findFirst: async () => ({ city: 'jakarta', drawDate: new Date(), firstPrize: '', secondPrize: '', thirdPrize: '' })
     },
     schedule: {
-      findUnique: async () => ({ city: 'jakarta', drawTime: '99:99' })
+      findUnique: async () => ({ city: 'jakarta', drawTime: '99:99', closeTime: '10:00' })
     }
   };
   const ctrl = loadController(mockPrisma);

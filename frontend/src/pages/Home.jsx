@@ -56,8 +56,10 @@ export default function Home() {
   }, []);
 
   const heroData = results[selectedCity] || {};
+  const heroNextClose = heroData.nextClose ? new Date(heroData.nextClose) : null;
   const heroNextDraw = heroData.nextDraw ? new Date(heroData.nextDraw) : null;
-  const showCountdown = heroNextDraw instanceof Date && !isNaN(heroNextDraw.valueOf());
+  const showCountdown =
+    heroNextClose instanceof Date && !isNaN(heroNextClose.valueOf());
 
   const heroNumbers = [
     heroData.firstPrize,
@@ -89,13 +91,14 @@ export default function Home() {
             </h1>
 
             {showCountdown
-              ? <CountdownTimer targetDate={heroNextDraw} />
+              ? <CountdownTimer targetDate={heroNextClose} />
               : <div className="h-12 w-48 bg-gray-700 animate-pulse rounded-md" />
             }
 
             {showCountdown && (
               <p className="text-sm text-gray-300">
-                {heroNextDraw.toLocaleString('id-ID', {
+                Tutup:{' '}
+                {heroNextClose.toLocaleString('id-ID', {
                   weekday: 'long',
                   day: 'numeric',
                   month: 'long',
@@ -103,8 +106,19 @@ export default function Home() {
                   hour: '2-digit',
                   minute: '2-digit',
                   timeZoneName: 'short',
-                                    timeZone: 'Asia/Jakarta',
-
+                  timeZone: 'Asia/Jakarta',
+                })}
+                <br />
+                Undian:{' '}
+                {heroNextDraw?.toLocaleString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZoneName: 'short',
+                  timeZone: 'Asia/Jakarta',
                 })}
               </p>
             )}
