@@ -255,32 +255,46 @@ exports.overrideResults = async (req, res) => {
   }
 };
 
-// Orchestrate a live draw for a city.
-// Emits five numbers (random or provided) one by one every 2–3 minutes.
+// Orchestrate a live draw with three prize rounds.
+// Each prize consists of six digits sent sequentially via Socket.IO.
 exports.startLiveDraw = async (req, res) => {
   const { city } = req.params;
-
-  // Allow predefined numbers via body; otherwise generate random digits
-  const bodyNumbers =
-    req.body && Array.isArray(req.body.numbers) && req.body.numbers.length === 5
-      ? req.body.numbers
-      : null;
-
-  const numbers = bodyNumbers || Array.from({ length: 5 }, () => Math.floor(Math.random() * 10));
-
   const io = getIO();
 
-  // Recursive emitter with 2–3 minute intervals
-  const emitBall = (index) => {
-    if (index >= numbers.length) return;
-    io.emit('liveDraw', { city, ballIndex: index + 1, value: numbers[index] });
-    if (index + 1 < numbers.length) {
-      const delay = 120000 + Math.floor(Math.random() * 60000); // 2–3 minutes
-      setTimeout(() => emitBall(index + 1), delay);
-    }
+  // Helper to build an array of 6 digits from body or random number
+  const digitsFrom = (src) => {
+    const str = typeof src === 'string' && /^\d{6}$/.test(src)
+      ? src
+      : String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+    return str.split('').map((d) => Number(d));
   };
 
-  emitBall(0);
+  const prizeDefs = [
+    { key: 'first', value: digitsFrom(req.body?.firstPrize) },
+    { key: 'second', value: digitsFrom(req.body?.secondPrize) },
+    { key: 'third', value: digitsFrom(req.body?.thirdPrize) },
+  ];
+
+  const drawPrize = (prizeIndex) => {
+    if (prizeIndex >= prizeDefs.length) return;
+    const prize = prizeDefs[prizeIndex];
+    io.to(city).emit('prizeStart', { city, prize: prize.key });
+    prize.value.forEach((num, idx) => {
+      setTimeout(() => {
+        io.to(city).emit('drawNumber', {
+          city,
+          prize: prize.key,
+          index: idx,
+          number: num,
+        });
+        if (idx === prize.value.length - 1) {
+          setTimeout(() => drawPrize(prizeIndex + 1), 1000);
+        }
+      }, idx * 1000);
+    });
+  };
+
+  drawPrize(0);
 
   res.json({ message: 'live draw started', city });
 };

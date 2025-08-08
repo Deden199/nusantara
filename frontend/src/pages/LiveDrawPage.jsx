@@ -8,6 +8,12 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { fetchPools } from '../services/api';
 
+const prizeLabels = {
+  first: 'Hadiah Pertama',
+  second: 'Hadiah Kedua',
+  third: 'Hadiah Ketiga',
+};
+
 function Ball({ rolling, value }) {
   const [display, setDisplay] = useState(0);
 
@@ -39,9 +45,11 @@ export default function LiveDrawPage() {
   const [cities, setCities] = useState([]);
   const [selectedCity, setSelectedCity] = useState('');
   const [balls, setBalls] = useState(() =>
-    Array.from({ length: 5 }, () => ({ value: null, rolling: false }))
+    Array.from({ length: 6 }, () => ({ value: null, rolling: false }))
   );
+  const [prize, setPrize] = useState('');
   const socketRef = useRef(null);
+  const prizeRef = useRef('');
 
   // Fetch list of pools
   useEffect(() => {
@@ -61,7 +69,19 @@ export default function LiveDrawPage() {
     const socket = socketIO(import.meta.env.VITE_SOCKET_URL || apiOrigin);
     socketRef.current = socket;
 
-    socket.on('drawNumber', ({ index, number }) => {
+    socket.on('prizeStart', ({ prize }) => {
+      prizeRef.current = prize;
+      setPrize(prize);
+      setBalls(Array.from({ length: 6 }, () => ({ value: null, rolling: false })));
+      setBalls(prev => {
+        const arr = [...prev];
+        if (arr[0]) arr[0].rolling = true;
+        return arr;
+      });
+    });
+
+    socket.on('drawNumber', ({ prize: p, index, number }) => {
+      if (p !== prizeRef.current) return;
       setBalls(prev => {
         const next = [...prev];
         next[index] = { value: number, rolling: false };
@@ -78,13 +98,10 @@ export default function LiveDrawPage() {
   // When city changes, reset balls and subscribe
   useEffect(() => {
     if (!selectedCity || !socketRef.current) return;
-    setBalls(Array.from({ length: 5 }, () => ({ value: null, rolling: false })));
+    setBalls(Array.from({ length: 6 }, () => ({ value: null, rolling: false })));
+    setPrize('');
+    prizeRef.current = '';
     socketRef.current.emit?.('joinLive', selectedCity);
-    setBalls(prev => {
-      const arr = [...prev];
-      if (arr[0]) arr[0].rolling = true;
-      return arr;
-    });
   }, [selectedCity]);
 
   return (
@@ -136,6 +153,11 @@ export default function LiveDrawPage() {
             </div>
           </Listbox>
         </div>
+        {prize && (
+          <h2 className="text-2xl font-bold mt-4">
+            {prizeLabels[prize]}
+          </h2>
+        )}
 
         <div className="flex space-x-4 mt-8">
           {balls.map((ball, idx) => (
