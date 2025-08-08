@@ -27,12 +27,15 @@ export default function Header() {
           <Link to="/schedule" className="hover:text-gold transition">Jadwal</Link>
 
           <Link to="/about" className="hover:text-gold transition">Tentang Kami</Link>
-          <button className="bg-red-600 hover:bg-red-700 px-4 py-1 rounded-lg flex items-center space-x-1 transition">
+          <Link
+            to="/livedraw"
+            className="bg-red-600 hover:bg-red-700 px-4 py-1 rounded-lg flex items-center space-x-1 transition"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M10 16.5l6-4.5-6-4.5v9z" />
             </svg>
-            <span>Live Streaming</span>
-          </button>
+            <span>Live Draw</span>
+          </Link>
 
         </nav>
 
@@ -58,12 +61,16 @@ export default function Header() {
               {label}
             </Link>
           ))}
-          <button className="w-full text-left bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg flex items-center space-x-1 transition">
+          <Link
+            to="/livedraw"
+            className="w-full text-left bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg flex items-center space-x-1 transition"
+            onClick={() => setOpen(false)}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M10 16.5l6-4.5-6-4.5v9z" />
             </svg>
-            <span>Live Streaming</span>
-          </button>
+            <span>Live Draw</span>
+          </Link>
           <div className="flex items-center space-x-2 pt-2">
             <img src="/flags/id.svg" alt="ID" className="w-5 h-5" />
             <span>ID</span>
