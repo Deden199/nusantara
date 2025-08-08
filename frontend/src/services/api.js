@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const baseUrl =
+  import.meta.env.VITE_API_URL || import.meta.env.VITE_SOCKET_URL || '';
+const API_URL = `${baseUrl}/api`;
 
 export async function fetchPools() {
   const res = await fetch(`${API_URL}/pools`);
