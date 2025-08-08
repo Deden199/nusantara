@@ -7,6 +7,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
+// track timers for result expiration per city
+const resultExpireTimers = new Map();
+
 function computeLiveMeta(schedule) {
   const now = jakartaDate();
   let startsAt = null;
@@ -37,12 +40,27 @@ async function emitLiveMeta(city, scheduleOverride) {
       scheduleOverride ||
       (await prisma.schedule.findUnique({ where: { city } }));
     const meta = computeLiveMeta(schedule);
+
+    if (!meta.isLive && scheduleOverride) {
+      // emit expiration timestamp and re-emit meta after expiry
+      meta.resultExpiresAt = Date.now() + 10 * 60 * 1000;
+      const existing = resultExpireTimers.get(city);
+      if (existing) clearTimeout(existing);
+      resultExpireTimers.set(
+        city,
+        setTimeout(() => {
+          resultExpireTimers.delete(city);
+          emitLiveMeta(city).catch(() => {});
+        }, 10 * 60 * 1000)
+      );
+    }
+
     const io = getIO();
     io.to(city).emit('liveMeta', meta);
   } catch (err) {
     try {
       const io = getIO();
-      io.to(city).emit('liveMeta', { isLive: false, startsAt: null });
+      io.to(city).emit('liveMeta', { isLive: false, startsAt: null, resultExpiresAt: null });
     } catch (e) {
       // ignore
     }
