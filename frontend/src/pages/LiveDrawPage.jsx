@@ -3,7 +3,7 @@ import { useEffect, useState, Fragment, useRef, useMemo } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronUpDownIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { io as socketIO } from 'socket.io-client';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { fetchPools } from '../services/api';
@@ -67,15 +67,18 @@ function Ball({ rolling, value }) {
 export default function LiveDrawPage() {
   const [cities, setCities] = useState([]);
   const [selectedCity, setSelectedCity] = useState(null);
-  const [balls, setBalls] = useState(() =>
-    Array.from({ length: 6 }, () => ({ value: null, rolling: false }))
-  );
-  const [prize, setPrize] = useState('');
+  const initialBalls = () =>
+    Array.from({ length: 6 }, () => ({ value: null, rolling: false }));
+  const [prizes, setPrizes] = useState({
+    first: initialBalls(),
+    second: initialBalls(),
+    third: initialBalls(),
+    currentPrize: '',
+  });
   const [nextStartAt, setNextStartAt] = useState(null);
   const [countdown, setCountdown] = useState('');
   const [tickerItems, setTickerItems] = useState([]);
   const socketRef = useRef(null);
-  const prizeRef = useRef('');
 
   // --- Normalize city item (support string OR object) ---
   const normalizeCity = (item) => {
@@ -144,23 +147,23 @@ export default function LiveDrawPage() {
     socketRef.current = socket;
 
     socket.on('prizeStart', ({ prize }) => {
-      prizeRef.current = prize;
-      setPrize(prize);
-      setBalls(Array.from({ length: 6 }, () => ({ value: null, rolling: false })));
-      setBalls((prev) => {
-        const arr = [...prev];
-        if (arr[0]) arr[0].rolling = true;
-        return arr;
+      setPrizes((prev) => {
+        const updated = { ...prev, currentPrize: prize };
+        const arr = initialBalls();
+        arr[0].rolling = true;
+        updated[prize] = arr;
+        return updated;
       });
     });
 
     socket.on('drawNumber', ({ prize: p, index, number }) => {
-      if (p !== prizeRef.current) return;
-      setBalls((prev) => {
-        const next = [...prev];
-        next[index] = { value: number, rolling: false };
-        if (index + 1 < next.length) next[index + 1].rolling = true;
-        return next;
+      setPrizes((prev) => {
+        const updated = { ...prev };
+        const arr = prev[p].map((b) => ({ ...b }));
+        arr[index] = { value: number, rolling: false };
+        if (index + 1 < arr.length) arr[index + 1].rolling = true;
+        updated[p] = arr;
+        return updated;
       });
       // tambahkan ke ticker (riwayat angka keluar)
       setTickerItems((t) => [
@@ -180,9 +183,12 @@ export default function LiveDrawPage() {
   // --- (Re)join room ketika city berubah ---
   useEffect(() => {
     if (!selectedCity || !socketRef.current) return;
-    setBalls(Array.from({ length: 6 }, () => ({ value: null, rolling: false })));
-    setPrize('');
-    prizeRef.current = '';
+    setPrizes({
+      first: initialBalls(),
+      second: initialBalls(),
+      third: initialBalls(),
+      currentPrize: '',
+    });
     socketRef.current.emit?.('joinLive', selectedCity.id ?? selectedCity.name ?? selectedCity);
     setNextStartAt(selectedCity.startsAt || null);
   }, [selectedCity]);
@@ -353,35 +359,27 @@ export default function LiveDrawPage() {
           </div>
         </div>
 
-        {/* Prize title */}
-        <AnimatePresence>
-          {prize && (
-            <motion.h2
-              key={prize}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="max-w-4xl mx-auto w-full text-center text-2xl sm:text-3xl font-extrabold mt-6 sm:mt-8"
-            >
-              {prizeLabels[prize]}
-            </motion.h2>
-          )}
-        </AnimatePresence>
-
-        {/* BALLS (responsive, no clipping on mobile) */}
-        <div className="max-w-4xl mx-auto w-full mt-6 sm:mt-8">
-          <div
-            className={[
-              // grid > wrap, supaya tidak kepotong di mobile
-              'grid grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 gap-3 sm:gap-4',
-              'place-items-center',
-              'px-1 sm:px-2',
-            ].join(' ')}
-          >
-            {balls.map((ball, idx) => (
-              <Ball key={idx} rolling={ball.rolling} value={ball.value} />
-            ))}
-          </div>
+        {/* Prize sections */}
+        <div className="max-w-4xl mx-auto w-full mt-6 sm:mt-8 space-y-8">
+          {['first', 'second', 'third'].map((key) => (
+            <div key={key}>
+              <h2 className="text-center text-2xl sm:text-3xl font-extrabold mb-4">
+                {prizeLabels[key]}
+              </h2>
+              <div
+                className={[
+                  // grid > wrap, supaya tidak kepotong di mobile
+                  'grid grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 gap-3 sm:gap-4',
+                  'place-items-center',
+                  'px-1 sm:px-2',
+                ].join(' ')}
+              >
+                {prizes[key].map((ball, idx) => (
+                  <Ball key={idx} rolling={ball.rolling} value={ball.value} />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </main>
 
