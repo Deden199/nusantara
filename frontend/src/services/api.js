@@ -4,6 +4,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 // Public
 export async function fetchPools() {
   const res = await fetch(`${API_URL}/pools`);
+  if (!res.ok) {
+    throw new Error(res.statusText);
+  }
   return res.json();
 }
 
