@@ -20,6 +20,21 @@ export async function fetchLatest(city) {
     nextDraw: data.nextDraw,
   };
 }
+
+export async function fetchAllLatest(cities = []) {
+  const url = new URL(`${API_URL}/pools/latest`);
+  if (cities.length) url.searchParams.set('cities', cities.join(','));
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(res.statusText);
+  }
+  const data = await res.json();
+  return data.map((item) => ({
+    ...item,
+    numbers: [item.firstPrize, item.secondPrize, item.thirdPrize],
+    nextDraw: item.nextDraw,
+  }));
+}
 // Admin
 export async function adminLogin(username, password) {
   const res = await fetch(`${API_URL}/admin/login`, {

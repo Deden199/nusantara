@@ -5,6 +5,7 @@ const router  = express.Router();
 
 // Public endpoints
 router.get('/pools',               ctrl.listPools);
+router.get('/pools/latest',        ctrl.latestMany);
 router.get('/pools/:city/latest',  ctrl.latestByCity);
 router.get('/history', ctrl.listAllHistory);
 

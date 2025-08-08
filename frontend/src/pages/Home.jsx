@@ -6,7 +6,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CityPoolCard from '../components/CityPoolCard';
 import CountdownTimer from '../components/CountdownTimer';
-import { fetchPools, fetchLatest } from '../services/api';
+import { fetchPools, fetchLatest, fetchAllLatest } from '../services/api';
 
 export default function Home() {
   const [cities, setCities] = useState([]);
@@ -42,26 +42,9 @@ export default function Home() {
         setCities(cityList);
         if (cityList.length) setSelectedCity(cityList[0]);
 
-        const settled = await Promise.allSettled(
-          cityList.map((city) => fetchLatest(city))
-        );
-
-        const successEntries = [];
-        const errorMessages = [];
-
-        settled.forEach((res, idx) => {
-          const city = cityList[idx];
-          if (res.status === 'fulfilled') {
-            successEntries.push([city, res.value]);
-          } else {
-            errorMessages.push(
-              `Failed to load ${city}: ${res.reason?.message || res.reason}`
-            );
-          }
-        });
-
-        setResults(Object.fromEntries(successEntries));
-        setError(errorMessages.length ? errorMessages.join('; ') : null);
+        const data = await fetchAllLatest(cityList);
+        setResults(Object.fromEntries(data.map((item) => [item.city, item])));
+        setError(null);
       } catch (err) {
         console.error('Failed to load pools:', err);
         setError(err.message || 'Failed to load data');
