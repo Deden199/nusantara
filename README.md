@@ -8,6 +8,17 @@ Platform hasil undian kota-kota di Indonesia.
 2. Jalankan `docker-compose up --build`.
 3. Akses frontend di `http://localhost:3000` dan backend API di `http://localhost:4000`.
 
+## Scheduler Hasil Undian
+
+Untuk menghasilkan hasil undian secara otomatis, jalankan scheduler di folder `backend`:
+
+```bash
+cd backend
+node src/cron/fetchResults.js
+```
+
+Scheduler menggunakan loop `setTimeout` untuk membaca jadwal dari tabel `Schedule` dan menjalankan proses penarikan pada waktu berikutnya secara terus menerus.
+
 ## Menambah Kota Baru
 
 Gunakan halaman Admin untuk menambah kota baru. Setiap tengah malam server akan membuat hasil undian otomatis.
