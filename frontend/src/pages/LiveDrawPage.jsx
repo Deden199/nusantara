@@ -51,7 +51,7 @@ function Ball({ rolling, value }) {
       transition={{ type: 'spring', stiffness: 350, damping: 20 }}
       className={[
         // ukuran dibuat fluid dan aman di mobile
-        'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 md:w-18 md:h-18',
+        'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16',
         'flex items-center justify-center rounded-full',
         'bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold',
         'text-lg xs:text-xl sm:text-2xl',
@@ -60,6 +60,121 @@ function Ball({ rolling, value }) {
       ].join(' ')}
     >
       {display}
+    </motion.div>
+  );
+}
+
+// --- Styles & Prize Box ---
+const PRIZE_STYLES = {
+  first: {
+    title: 'Hadiah Pertama',
+    ringFrom: 'from-amber-400',
+    ringTo: 'to-red-500',
+    headerGrad: 'from-amber-500/20 to-red-500/20',
+    medal: '🥇',
+    chipColor: 'bg-amber-500/15 text-amber-200 border-amber-300/30',
+  },
+  second: {
+    title: 'Hadiah Kedua',
+    ringFrom: 'from-zinc-200',
+    ringTo: 'to-sky-400',
+    headerGrad: 'from-zinc-300/15 to-sky-400/20',
+    medal: '🥈',
+    chipColor: 'bg-sky-500/15 text-sky-200 border-sky-300/30',
+  },
+  third: {
+    title: 'Hadiah Ketiga',
+    ringFrom: 'from-orange-400',
+    ringTo: 'to-rose-500',
+    headerGrad: 'from-orange-400/15 to-rose-500/15',
+    medal: '🥉',
+    chipColor: 'bg-orange-500/15 text-orange-200 border-orange-300/30',
+  },
+};
+
+function PrizeBox({ k, balls, active }) {
+  const s = PRIZE_STYLES[k];
+  const allFixed = balls.every((b) => b.value !== null && b.value !== undefined);
+  const result = allFixed ? balls.map((b) => b.value).join('') : null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative rounded-2xl overflow-hidden"
+    >
+      {/* Glow border gradient */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-br ${s.ringFrom} ${s.ringTo} opacity-30`} />
+      </div>
+
+      {/* Body */}
+      <div className="relative rounded-2xl bg-gray-900/60 backdrop-blur p-4 sm:p-5 border border-white/10">
+        {/* Header */}
+        <div className={`flex items-center justify-between rounded-xl p-3 sm:p-4 bg-gradient-to-r ${s.headerGrad}`}>
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">{s.medal}</div>
+            <div>
+              <div className="text-base sm:text-lg font-extrabold tracking-wide">{s.title}</div>
+              <div className="text-xs sm:text-sm opacity-80">
+                {active ? 'Sedang diundi…' : allFixed ? 'Selesai diundi' : 'Menunggu giliran'}
+              </div>
+            </div>
+          </div>
+
+          {/* Chip status / hasil */}
+          <div
+            className={[
+              'px-3 py-1 rounded-full text-xs sm:text-sm border',
+              s.chipColor,
+              active ? 'animate-pulse' : '',
+            ].join(' ')}
+          >
+            {active ? 'LIVE' : allFixed ? 'Final' : 'Idle'}
+          </div>
+        </div>
+
+        {/* Balls */}
+        <div className="mt-4 sm:mt-5">
+          <div
+            className={[
+              'grid grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 gap-3 sm:gap-4',
+              'place-items-center',
+              'px-1 sm:px-2',
+            ].join(' ')}
+          >
+            {balls.map((ball, idx) => (
+              <Ball key={idx} rolling={ball.rolling} value={ball.value} />
+            ))}
+          </div>
+
+            {/* Result line */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: result ? 1 : 0.6 }}
+            className="mt-4 text-center"
+          >
+            <span className="text-xs uppercase tracking-wider opacity-70">Kombinasi</span>
+            <div className="text-xl sm:text-2xl font-black tabular-nums mt-1">
+              {result ? result : '— — — — — —'}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Active halo */}
+      {active && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.7 }}
+          transition={{ duration: 0.4 }}
+          className="pointer-events-none absolute -inset-2 rounded-3xl blur-2xl"
+          style={{
+            background:
+              'radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.12), rgba(0,0,0,0))',
+          }}
+        />
+      )}
     </motion.div>
   );
 }
@@ -189,15 +304,15 @@ export default function LiveDrawPage() {
       third: initialBalls(),
       currentPrize: '',
     });
-    socketRef.current.emit?.('joinLive', selectedCity.id ?? selectedCity.name ?? selectedCity);
+    socketRef.current.emit?.(
+      'joinLive',
+      selectedCity.id ?? selectedCity.name ?? selectedCity
+    );
     setNextStartAt(selectedCity.startsAt || null);
   }, [selectedCity]);
 
   const cityLabel = (c) =>
-    c?.name ||
-    c?.city ||
-    (typeof c === 'string' ? c : '') ||
-    'Pilih Kota';
+    c?.name || c?.city || (typeof c === 'string' ? c : '') || 'Pilih Kota';
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-red-950 text-gray-100">
@@ -329,7 +444,11 @@ export default function LiveDrawPage() {
                     <span>{c.name}</span>
                   </div>
                   <span className="opacity-80">
-                    {c.isLive ? 'Live' : c.startsAt ? c.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                    {c.isLive
+                      ? 'Live'
+                      : c.startsAt
+                      ? c.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : '-'}
                   </span>
                 </div>
               ))}
@@ -360,26 +479,10 @@ export default function LiveDrawPage() {
         </div>
 
         {/* Prize sections */}
-        <div className="max-w-4xl mx-auto w-full mt-6 sm:mt-8 space-y-8">
-          {['first', 'second', 'third'].map((key) => (
-            <div key={key}>
-              <h2 className="text-center text-2xl sm:text-3xl font-extrabold mb-4">
-                {prizeLabels[key]}
-              </h2>
-              <div
-                className={[
-                  // grid > wrap, supaya tidak kepotong di mobile
-                  'grid grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 gap-3 sm:gap-4',
-                  'place-items-center',
-                  'px-1 sm:px-2',
-                ].join(' ')}
-              >
-                {prizes[key].map((ball, idx) => (
-                  <Ball key={idx} rolling={ball.rolling} value={ball.value} />
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="max-w-4xl mx-auto w-full mt-6 sm:mt-8 space-y-6 sm:space-y-8">
+          <PrizeBox k="first"  balls={prizes.first}  active={prizes.currentPrize === 'first'} />
+          <PrizeBox k="second" balls={prizes.second} active={prizes.currentPrize === 'second'} />
+          <PrizeBox k="third"  balls={prizes.third}  active={prizes.currentPrize === 'third'} />
         </div>
       </main>
 
