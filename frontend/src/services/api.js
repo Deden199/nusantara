@@ -4,7 +4,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 // Public
 export async function fetchPools() {
   const res = await fetch(`${API_URL}/pools`);
-  return res.json();
+  const data = await res.json();
+  return data.map((item) => ({
+    city: item.city ?? item,
+    startsAt: item.startsAt ?? null,
+    isLive: item.isLive ?? false,
+  }));
 }
 
 export async function fetchLatest(city) {

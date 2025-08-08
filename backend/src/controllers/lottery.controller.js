@@ -10,7 +10,40 @@ exports.listPools = async (req, res) => {
       distinct: ['city'],
       orderBy: { city: 'asc' },
     });
-    res.json(cities.map(c => c.city));
+
+    const schedules = await prisma.schedule.findMany({
+      where: { city: { in: cities.map((c) => c.city) } },
+    });
+    const scheduleMap = Object.fromEntries(schedules.map((s) => [s.city, s]));
+
+    const now = jakartaDate();
+    const enriched = cities.map((c) => {
+      const sched = scheduleMap[c.city];
+      let startsAt = null;
+      let isLive = false;
+      if (sched && /^\d{2}:\d{2}$/.test(sched.drawTime)) {
+        const [drawHour, drawMinute] = sched.drawTime.split(':').map(Number);
+        const [closeHour, closeMinute] = (sched.closeTime || '').split(':').map(Number);
+
+        const drawDate = new Date(now);
+        drawDate.setUTCHours(drawHour - 7, drawMinute, 0, 0);
+        if (drawDate <= now) drawDate.setUTCDate(drawDate.getUTCDate() + 1);
+        startsAt = drawDate.toISOString();
+
+        if (
+          !Number.isNaN(closeHour) &&
+          !Number.isNaN(closeMinute)
+        ) {
+          const closeDate = new Date(now);
+          closeDate.setUTCHours(closeHour - 7, closeMinute, 0, 0);
+          if (closeDate <= now) closeDate.setUTCDate(closeDate.getUTCDate() + 1);
+          isLive = now >= closeDate && now < drawDate;
+        }
+      }
+      return { city: c.city, startsAt, isLive };
+    });
+
+    res.json(enriched);
   } catch (err) {
     if (err.code === 'P1001' || err.code === 'P1002') {
       console.error('[listPools] Database unavailable:', err);
