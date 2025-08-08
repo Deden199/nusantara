@@ -27,6 +27,10 @@ exports.latestByCity = async (req, res) => {
     const schedule = await prisma.schedule.findUnique({ where: { city } });
     let nextDraw = null;
     if (schedule?.drawTime) {
+      if (!/^\d{2}:\d{2}$/.test(schedule.drawTime)) {
+        console.error(`Invalid drawTime format for city ${city}: ${schedule.drawTime}`);
+        return res.status(400).json({ message: 'Invalid drawTime format' });
+      }
       const [hour, minute] = schedule.drawTime.split(':').map(Number);
       const now = jakartaDate();
       const next = new Date(now);
