@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react';
 
-export default function CountdownTimer({ targetDate }) {
+export default function CountdownTimer({ targetDate, onComplete }) {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const tick = () => {
+      const current = Date.now();
+      if (current >= targetDate) {
+        setNow(current);
+        clearInterval(id);
+        onComplete?.();
+      } else {
+        setNow(current);
+      }
+    };
+    const id = setInterval(tick, 1000);
+    tick();
     return () => clearInterval(id);
-  }, []);
+  }, [targetDate, onComplete]);
 
   const diff = Math.max(0, targetDate - now);
   const hrs = Math.floor(diff / 3600000);
