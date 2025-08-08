@@ -108,7 +108,7 @@ export default function LiveDrawPage() {
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-900 via-red-800 to-red-900 text-gray-100">
       <Header />
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-12 space-y-8">
-        <div className="w-64">
+        <div className="w-full max-w-xs sm:max-w-sm">
           <Listbox value={selectedCity} onChange={setSelectedCity}>
             <div className="relative">
               <Listbox.Button className="relative w-full cursor-pointer bg-gray-700 text-white py-2 pl-4 pr-10 text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
