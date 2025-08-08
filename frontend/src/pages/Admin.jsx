@@ -60,11 +60,14 @@ export default function Admin() {
     ])
       .then(([statsData, poolsData, overridesData, schedulesData]) => {
         setStats(statsData);
-        setPools(poolsData.map(p => p.city));
+        setPools(Array.isArray(poolsData) ? poolsData.map(p => p.city) : []);
         setOverrides(Array.isArray(overridesData) ? overridesData : []);
         setSchedules(Array.isArray(schedulesData) ? schedulesData : []);
       })
-      .catch(() => setFetchError('Gagal memuat data awal'))
+      .catch((err) => {
+        setFetchError('Gagal memuat data awal');
+        setMessage({ text: err?.message || 'Gagal memuat data', type: 'error' });
+      })
       .finally(() => setIsLoading(false));
   }, [token]);
 
@@ -76,7 +79,7 @@ export default function Admin() {
       setMessage({ text: `Kota “${newCity}” ditambahkan`, type: 'success' });
       setNewCity('');
       const updated = await fetchPools(token);
-      setPools(updated.map(p => p.city));
+      setPools(Array.isArray(updated) ? updated.map(p => p.city) : []);
     } catch (err) {
       setMessage({ text: err.message || 'Gagal menambahkan kota', type: 'error' });
     }
@@ -116,7 +119,7 @@ export default function Admin() {
     try {
       await deletePool(city, token);
       const updated = await fetchPools(token);
-      setPools(updated.map(p => p.city));
+      setPools(Array.isArray(updated) ? updated.map(p => p.city) : []);
     } catch (err) {
       setMessage({ text: err.message || 'Gagal menghapus kota', type: 'error' });
     }
@@ -171,7 +174,13 @@ export default function Admin() {
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
           {message.text && (
-            <div className={`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            <div
+              className={`mb-4 p-4 rounded-lg ${
+                message.type === 'success'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
+              }`}
+            >
               {message.text}
             </div>
           )}
