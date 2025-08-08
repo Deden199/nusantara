@@ -192,6 +192,7 @@ export default function LiveDrawPage() {
   });
   const [nextStartAt, setNextStartAt] = useState(null);
   const [countdown, setCountdown] = useState('');
+  const [resultExpiresAt, setResultExpiresAt] = useState(null);
   const [tickerItems, setTickerItems] = useState([]);
   const socketRef = useRef(null);
   const startRequestedRef = useRef(false);
@@ -264,6 +265,32 @@ export default function LiveDrawPage() {
     startRequestedRef.current = false;
   }, [selectedCity, nextStartAt]);
 
+  // reset prizes after result expiration
+  useEffect(() => {
+    if (!resultExpiresAt) return;
+    const delay = resultExpiresAt - Date.now();
+    if (delay <= 0) {
+      setResultExpiresAt(null);
+      setPrizes({
+        first: initialBalls(),
+        second: initialBalls(),
+        third: initialBalls(),
+        currentPrize: '',
+      });
+      return;
+    }
+    const t = setTimeout(() => {
+      setResultExpiresAt(null);
+      setPrizes({
+        first: initialBalls(),
+        second: initialBalls(),
+        third: initialBalls(),
+        currentPrize: '',
+      });
+    }, delay);
+    return () => clearTimeout(t);
+  }, [resultExpiresAt]);
+
   useEffect(() => {
     if (
       countdown === '00:00:00' &&
@@ -315,9 +342,18 @@ export default function LiveDrawPage() {
       ]);
     });
 
-    socket.on('liveMeta', ({ isLive, startsAt }) => {
+    socket.on('liveMeta', ({ isLive, startsAt, resultExpiresAt }) => {
       // server optional: update meta agar countdown relevan
       setNextStartAt(parseDate(startsAt) || null);
+      setResultExpiresAt(resultExpiresAt || null);
+      if (!resultExpiresAt) {
+        setPrizes({
+          first: initialBalls(),
+          second: initialBalls(),
+          third: initialBalls(),
+          currentPrize: '',
+        });
+      }
     });
 
     return () => socket.disconnect();
@@ -332,6 +368,7 @@ export default function LiveDrawPage() {
       third: initialBalls(),
       currentPrize: '',
     });
+    setResultExpiresAt(null);
     socketRef.current.emit?.(
       'joinLive',
       selectedCity.id ?? selectedCity.name ?? selectedCity
