@@ -1,5 +1,12 @@
 const prisma = require('../config/database');
 const { logFetchError } = require('../controllers/lottery.controller');
+const { startLiveDraw } = require('../liveDraw');
+
+// lead time in minutes before draw when live draw should start
+const LIVE_DRAW_LEAD_MINUTES = 5;
+
+// track cities that have an active live draw to avoid duplicates
+const activeLiveDraws = new Set();
 
 function jakartaNow() {
   const now = new Date();
@@ -29,16 +36,20 @@ async function run() {
       const existing = await prisma.lotteryResult.findUnique({
         where: { city_drawDate: { city: s.city, drawDate } },
       });
-      if (!existing && now >= drawDate) {
-        await prisma.lotteryResult.create({
-          data: {
-            city: s.city,
-            drawDate,
-            firstPrize: generateNumber(),
-            secondPrize: generateNumber(),
-            thirdPrize: generateNumber(),
-          },
-        });
+      if (now >= drawDate) {
+        if (!existing) {
+          await prisma.lotteryResult.create({
+            data: {
+              city: s.city,
+              drawDate,
+              firstPrize: generateNumber(),
+              secondPrize: generateNumber(),
+              thirdPrize: generateNumber(),
+            },
+          });
+        }
+        // end live draw once the result is processed
+        activeLiveDraws.delete(s.city);
       }
     }
     console.log('Draw job executed at', now);
@@ -101,9 +112,49 @@ async function scheduleNext() {
   }
 }
 
-if (require.main === module) {
-  scheduleNext();
+async function scheduleLiveStart() {
+  try {
+    const now = jakartaNow();
+    let schedules = [];
+    try {
+      schedules = await prisma.schedule.findMany();
+    } catch (err) {
+      console.warn('[scheduleLiveStart] prisma.schedule.findMany failed:', err);
+    }
+    let nextStart = null;
+    for (const s of schedules) {
+      if (!s.drawTime) continue;
+      const [hour, minute] = s.drawTime.split(':').map(Number);
+      const drawDate = new Date(now);
+      drawDate.setHours(hour, minute, 0, 0);
+      if (drawDate <= now) drawDate.setDate(drawDate.getDate() + 1);
+      const startTime = new Date(drawDate.getTime() - LIVE_DRAW_LEAD_MINUTES * 60000);
+      if (now >= startTime && now < drawDate) {
+        if (!activeLiveDraws.has(s.city)) {
+          try {
+            await startLiveDraw(s.city);
+            activeLiveDraws.add(s.city);
+          } catch (err) {
+            console.error('[scheduleLiveStart] startLiveDraw failed:', err);
+          }
+        }
+      }
+      if (startTime > now && (!nextStart || startTime < nextStart)) {
+        nextStart = startTime;
+      }
+    }
+    const delay = nextStart ? nextStart.getTime() - now.getTime() : 60 * 1000;
+    setTimeout(scheduleLiveStart, delay);
+  } catch (err) {
+    console.error('[scheduleLiveStart] Error scheduling live draw:', err);
+    setTimeout(scheduleLiveStart, 60 * 1000);
+  }
 }
 
-module.exports = { run, scheduleNext };
+if (require.main === module) {
+  scheduleNext();
+  scheduleLiveStart();
+}
+
+module.exports = { run, scheduleNext, scheduleLiveStart };
 
