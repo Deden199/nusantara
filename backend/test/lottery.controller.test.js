@@ -29,7 +29,7 @@ test('latestByCity returns 404 when schedule is missing', async () => {
   };
   await ctrl.latestByCity(req, res);
   assert.equal(statusCode, 404);
-  assert.deepEqual(body, { message: 'Schedule not found' });
+  assert.deepEqual(body, { error: 'schedule missing' });
 });
 
 test('latestByCity returns 400 when drawTime is invalid', async () => {

@@ -12,7 +12,12 @@ exports.listPools = async (req, res) => {
     });
     res.json(cities.map(c => c.city));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.code === 'P1001' || err.code === 'P1002') {
+      console.error('[listPools] Database unavailable:', err);
+      return res.status(503).json({ error: 'database unavailable' });
+    }
+    console.error('[listPools] Unexpected error:', err);
+    res.status(500).json({ error: 'internal server error' });
   }
 };
 
@@ -25,12 +30,12 @@ exports.latestByCity = async (req, res) => {
     });
     if (!result) {
       console.warn(`No lottery result found for city ${city}`);
-      return res.status(404).json({ message: 'Not found' });
+      return res.status(404).json({ error: 'result missing' });
     }
     const schedule = await prisma.schedule.findUnique({ where: { city } });
     if (!schedule || !schedule.drawTime) {
       console.warn(`No schedule found for city ${city}`);
-      return res.status(404).json({ message: 'Schedule not found' });
+      return res.status(404).json({ error: 'schedule missing' });
     }
     let nextDraw = null;
     if (!/^\d{2}:\d{2}$/.test(schedule.drawTime)) {
@@ -56,8 +61,12 @@ exports.latestByCity = async (req, res) => {
     nextDraw = next;
     res.json({ ...result, nextDraw });
   } catch (err) {
-    console.error(`[latestByCity] Error processing city ${city}:`, err);
-    res.status(500).json({ error: err.message });
+    if (err.code === 'P1001' || err.code === 'P1002') {
+      console.error(`[latestByCity] Database unavailable for city ${city}:`, err);
+      return res.status(503).json({ error: 'database unavailable' });
+    }
+    console.error(`[latestByCity] Unexpected error processing city ${city}:`, err);
+    res.status(500).json({ error: 'internal server error' });
   }
 };
 exports.deletePool = async (req, res) => {
