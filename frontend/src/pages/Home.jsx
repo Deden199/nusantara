@@ -34,6 +34,21 @@ export default function Home() {
 
   const heroNextDraw = nextDrawTimes.hero ? new Date(nextDrawTimes.hero) : null;
 
+  const refreshResults = () => {
+    Promise.all(
+      cities.map(city =>
+        fetchLatest(city).then(data => [city, data])
+      )
+    ).then(pairs => {
+      const map = Object.fromEntries(pairs);
+      setResults(map);
+      if (pairs.length) {
+        const [, firstData] = pairs[0];
+        setNextDrawTimes(prev => ({ ...prev, hero: firstData.nextDraw }));
+      }
+    });
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
@@ -51,7 +66,7 @@ export default function Home() {
               Result Angka Nusantara Pool
             </h1>
             {heroNextDraw ? (
-              <CountdownTimer targetDate={heroNextDraw} />
+              <CountdownTimer targetDate={heroNextDraw} onComplete={refreshResults} />
             ) : (
               <div className="h-12 w-48 bg-gray-700 animate-pulse rounded-md" />
             )}
