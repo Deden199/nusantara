@@ -2,6 +2,9 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+// Interval antar undian dalam menit. Default 60 menit.
+const DRAW_INTERVAL_MINUTES = parseInt(process.env.DRAW_INTERVAL_MINUTES || '60', 10);
+const DRAW_INTERVAL_MS = DRAW_INTERVAL_MINUTES * 60 * 1000;
 
 exports.listPools = async (req, res) => {
   try {
@@ -23,7 +26,9 @@ exports.latestByCity = async (req, res) => {
       orderBy: { drawDate: 'desc' },
     });
     if (!result) return res.status(404).json({ message: 'Not found' });
-    res.json(result);
+    // Hitung waktu undian berikutnya berdasarkan drawDate terakhir + interval
+    const nextDraw = new Date(result.drawDate.getTime() + DRAW_INTERVAL_MS);
+    res.json({ ...result, nextDraw });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
