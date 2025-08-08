@@ -3,7 +3,8 @@ import { useEffect, useState, Fragment, useRef } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronUpDownIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { io as socketIO } from 'socket.io-client';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import Confetti from 'react-confetti';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { fetchPools } from '../services/api';
@@ -14,7 +15,7 @@ const prizeLabels = {
   third: 'Hadiah Ketiga',
 };
 
-function Ball({ rolling, value }) {
+function Ball({ rolling, value, index }) {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
@@ -29,14 +30,45 @@ function Ball({ rolling, value }) {
     return () => clearInterval(interval);
   }, [rolling, value]);
 
+  const variants = {
+    hidden: { opacity: 0, scale: 0.6 },
+    visible: i => ({
+      opacity: 1,
+      scale: 1,
+      transition: { delay: i * 0.1, type: 'spring', stiffness: 350, damping: 20 }
+    }),
+    rolling: i => ({
+      opacity: 1,
+      scale: 1,
+      rotate: 360,
+      y: [0, -5, 0],
+      transition: {
+        delay: i * 0.1,
+        rotate: { repeat: Infinity, duration: 1, ease: 'linear' },
+        y: { repeat: Infinity, duration: 0.6, ease: 'easeInOut' }
+      }
+    })
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.6 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-      className="w-16 h-16 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold text-xl shadow-lg border-2 border-white"
+      className="relative w-16 h-16 flex items-center justify-center"
+      variants={variants}
+      custom={index}
+      initial="hidden"
+      animate={rolling ? 'rolling' : 'visible'}
+      exit="hidden"
     >
-      {display}
+      {rolling && (
+        <motion.div
+          className="absolute inset-0 rounded-full bg-yellow-300/30 blur-xl"
+          animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.3, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+      )}
+      <div className="w-full h-full flex items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold text-xl shadow-lg border-2 border-white">
+        {display}
+      </div>
     </motion.div>
   );
 }
@@ -48,6 +80,11 @@ export default function LiveDrawPage() {
     Array.from({ length: 6 }, () => ({ value: null, rolling: false }))
   );
   const [prize, setPrize] = useState('');
+  const [celebrate, setCelebrate] = useState(false);
+  const [confettiSize, setConfettiSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0
+  });
   const socketRef = useRef(null);
   const prizeRef = useRef('');
 
@@ -72,6 +109,7 @@ export default function LiveDrawPage() {
     socket.on('prizeStart', ({ prize }) => {
       prizeRef.current = prize;
       setPrize(prize);
+      setCelebrate(false);
       setBalls(Array.from({ length: 6 }, () => ({ value: null, rolling: false })));
       setBalls(prev => {
         const arr = [...prev];
@@ -87,6 +125,8 @@ export default function LiveDrawPage() {
         next[index] = { value: number, rolling: false };
         if (index + 1 < next.length) {
           next[index + 1].rolling = true;
+        } else {
+          setCelebrate(true);
         }
         return next;
       });
@@ -94,6 +134,21 @@ export default function LiveDrawPage() {
 
     return () => socket.disconnect();
   }, []);
+
+  useEffect(() => {
+    function handleResize() {
+      setConfettiSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (celebrate) {
+      const t = setTimeout(() => setCelebrate(false), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [celebrate]);
 
   // When city changes, reset balls and subscribe
   useEffect(() => {
@@ -107,6 +162,14 @@ export default function LiveDrawPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-900 via-red-800 to-red-900 text-gray-100">
       <Header />
+      {celebrate && (
+        <Confetti
+          width={confettiSize.width}
+          height={confettiSize.height}
+          recycle={false}
+          numberOfPieces={500}
+        />
+      )}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-12 space-y-8">
         <div className="w-64">
           <Listbox value={selectedCity} onChange={setSelectedCity}>
@@ -153,16 +216,27 @@ export default function LiveDrawPage() {
             </div>
           </Listbox>
         </div>
-        {prize && (
-          <h2 className="text-2xl font-bold mt-4">
-            {prizeLabels[prize]}
-          </h2>
-        )}
+        <AnimatePresence mode="wait">
+          {prize && (
+            <motion.h2
+              key={prize}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.5 }}
+              className="text-2xl font-bold mt-4"
+            >
+              {prizeLabels[prize]}
+            </motion.h2>
+          )}
+        </AnimatePresence>
 
         <div className="flex space-x-4 mt-8">
-          {balls.map((ball, idx) => (
-            <Ball key={idx} rolling={ball.rolling} value={ball.value} />
-          ))}
+          <AnimatePresence>
+            {balls.map((ball, idx) => (
+              <Ball key={`${prize}-${idx}`} index={idx} rolling={ball.rolling} value={ball.value} />
+            ))}
+          </AnimatePresence>
         </div>
       </main>
       <Footer />
