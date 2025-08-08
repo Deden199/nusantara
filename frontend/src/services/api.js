@@ -1,10 +1,25 @@
 // frontend/src/services/api.js
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    if (localStorage.getItem('token')) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(msg || res.statusText);
+  }
+  return res.json();
+}
+
 // Public
 export async function fetchPools() {
-  const res = await fetch(`${API_URL}/pools`);
-  const data = await res.json();
+  const data = await apiFetch(`${API_URL}/pools`);
   return data.map((item) => ({
     city: item.city ?? item,
     startsAt: item.startsAt ?? null,
@@ -13,11 +28,7 @@ export async function fetchPools() {
 }
 
 export async function fetchLatest(city) {
-  const res = await fetch(`${API_URL}/pools/${city}/latest`);
-  if (!res.ok) {
-    throw new Error(res.statusText);
-  }
-  const data = await res.json();
+  const data = await apiFetch(`${API_URL}/pools/${city}/latest`);
   // ensure nextDraw gets passed along
   return {
     ...data,
@@ -30,11 +41,7 @@ export async function fetchLatest(city) {
 export async function fetchAllLatest(cities = []) {
   const url = new URL(`${API_URL}/pools/latest`);
   if (cities.length) url.searchParams.set('cities', cities.join(','));
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(res.statusText);
-  }
-  const data = await res.json();
+  const data = await apiFetch(url);
   return data.map((item) => ({
     ...item,
     numbers: [item.firstPrize, item.secondPrize, item.thirdPrize],
@@ -53,7 +60,7 @@ export async function adminLogin(username, password) {
 }
 
 export async function addPool(city, token) {
-  const res = await fetch(`${API_URL}/admin/pools`, {
+  return apiFetch(`${API_URL}/admin/pools`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -61,11 +68,10 @@ export async function addPool(city, token) {
     },
     body: JSON.stringify({ city }),
   });
-  return res.json();
 }
 
 export async function overrideResults(city, drawDate, prizes, token) {
-  const res = await fetch(`${API_URL}/admin/pools/${city}/results`, {
+  return apiFetch(`${API_URL}/admin/pools/${city}/results`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -73,39 +79,34 @@ export async function overrideResults(city, drawDate, prizes, token) {
     },
     body: JSON.stringify({ drawDate, ...prizes }),
   });
-  return res.json();
 }
 
 // Recent Overrides
 export async function fetchRecentOverrides(token, limit = 10) {
   const url = new URL(`${API_URL}/admin/overrides`);
   url.searchParams.set('limit', limit);
-  const res = await fetch(url, {
+  return apiFetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.json();
 }
 export async function fetchPublicSchedules() {
-  const res = await fetch(`${API_URL}/schedules`);
-  return res.json();
+  return apiFetch(`${API_URL}/schedules`);
 }
 // Dashboard Stats
 export async function fetchStats(token) {
-  const res = await fetch(`${API_URL}/admin/stats`, {
+  return apiFetch(`${API_URL}/admin/stats`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.json();
 }
 // Schedule management
 export async function fetchSchedules(token) {
-  const res = await fetch(`${API_URL}/admin/schedules`, {
+  return apiFetch(`${API_URL}/admin/schedules`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.json();
 }
 
 export async function createSchedule(city, drawTime, closeTime, token) {
-  const res = await fetch(`${API_URL}/admin/schedules`, {
+  return apiFetch(`${API_URL}/admin/schedules`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -113,11 +114,10 @@ export async function createSchedule(city, drawTime, closeTime, token) {
     },
     body: JSON.stringify({ city, drawTime, closeTime }),
   });
-  return res.json();
 }
 
 export async function updateSchedule(city, drawTime, closeTime, token) {
-  const res = await fetch(`${API_URL}/admin/schedules/${city}`, {
+  return apiFetch(`${API_URL}/admin/schedules/${city}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -125,26 +125,23 @@ export async function updateSchedule(city, drawTime, closeTime, token) {
     },
     body: JSON.stringify({ drawTime, closeTime }),
   });
-  return res.json();
 }
 export async function deletePool(city, token) {
-  const res = await fetch(`${API_URL}/admin/pools/${city}`, {
+  return apiFetch(`${API_URL}/admin/pools/${city}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.json();
 }
 export async function deleteSchedule(city, token) {
-  const res = await fetch(`${API_URL}/admin/schedules/${city}`, {
+  return apiFetch(`${API_URL}/admin/schedules/${city}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.json();
 }
 export async function fetchAllHistory() {
-  const res = await fetch(`${API_URL}/history`);
-  const data = await res.json();
+  const data = await apiFetch(`${API_URL}/history`);
   return data.map(item => ({
     ...item,
     numbers: [item.firstPrize, item.secondPrize, item.thirdPrize],
-  }));}
+  }));
+}
