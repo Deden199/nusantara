@@ -195,6 +195,7 @@ export default function LiveDrawPage() {
   const [tickerItems, setTickerItems] = useState([]);
   const socketRef = useRef(null);
   const startRequestedRef = useRef(false);
+  const [error, setError] = useState(null);
 
   // --- Normalize city item coming from API ({ city, startsAt, isLive }) ---
   const normalizeCity = (item) => {
@@ -228,8 +229,14 @@ export default function LiveDrawPage() {
   // --- Initial fetch + pick best city (live or nearest) ---
   useEffect(() => {
     async function load() {
-      const list = await fetchPools();
-      setCities(Array.isArray(list) ? list : []);
+      try {
+        const list = await fetchPools();
+        setCities(Array.isArray(list) ? list : []);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load pools', err);
+        setError(err.message || 'Failed to load pools');
+      }
     }
     load();
   }, []);
@@ -338,7 +345,9 @@ export default function LiveDrawPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-red-950 text-gray-100">
       <Header />
-
+      {error && (
+        <div className="bg-red-100 text-red-700 text-center py-2">{error}</div>
+      )}
       <main className="flex-1 px-4 py-6 sm:py-10">
         {/* Live banner + countdown */}
         <div className="max-w-4xl mx-auto w-full">

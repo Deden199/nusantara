@@ -53,18 +53,22 @@ export default function Admin() {
   // Fetch admin data
   useEffect(() => {
     if (!token) return;
-    fetchStats(token)
-      .then(data => setStats(data))
-      .catch(err => console.error(err));
-    fetchPools(token)
-      .then(data => setPools(data))
-      .catch(err => console.error(err));
-    fetchRecentOverrides(token)
-      .then(data => setOverrides(Array.isArray(data) ? data : []))
-      .catch(err => console.error(err));
-          fetchSchedules(token)
-      .then(data => setSchedules(Array.isArray(data) ? data : []))
-      .catch(err => console.error(err));
+    (async () => {
+      try {
+        const [statsData, poolData, overrideData, scheduleData] = await Promise.all([
+          fetchStats(token),
+          fetchPools(token),
+          fetchRecentOverrides(token),
+          fetchSchedules(token),
+        ]);
+        setStats(statsData);
+        setPools(poolData);
+        setOverrides(Array.isArray(overrideData) ? overrideData : []);
+        setSchedules(Array.isArray(scheduleData) ? scheduleData : []);
+      } catch (err) {
+        setMessage({ text: err.message || 'Gagal memuat data', type: 'error' });
+      }
+    })();
   }, [token]);
 
   const handleAdd = async e => {

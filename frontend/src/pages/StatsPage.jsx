@@ -9,15 +9,22 @@ export default function StatsPage() {
   const [stats, setStats] = useState(null);
   const [filterCity, setFilterCity] = useState('');
   const [cities, setCities] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchStats().then(setStats).catch(console.error);
-    fetchAllHistory()
-      .then(data => {
-        setHistory(data);
-        setCities(Array.from(new Set(data.map(item => item.city))).sort());
-      })
-      .catch(console.error);
+    (async () => {
+      try {
+        const [statsData, historyData] = await Promise.all([
+          fetchStats(),
+          fetchAllHistory(),
+        ]);
+        setStats(statsData);
+        setHistory(historyData);
+        setCities(Array.from(new Set(historyData.map(item => item.city))).sort());
+      } catch (err) {
+        setError(err.message || 'Gagal memuat data');
+      }
+    })();
   }, []);
 
   const displayed = filterCity
@@ -38,6 +45,9 @@ export default function StatsPage() {
       <div className="flex-grow flex justify-center items-start py-16">
         <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden">
           <main className="px-8 py-12 space-y-12">
+            {error && (
+              <div className="text-red-600 text-center mb-4">{error}</div>
+            )}
             {/* Title */}
             <div className="text-center">
               <h1 className="text-4xl font-extrabold text-primary mb-2">Statistik &amp; Riwayat Nusantara Full</h1>
