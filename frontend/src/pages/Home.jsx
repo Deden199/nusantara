@@ -125,12 +125,12 @@ export default function Home() {
 
             {/* Custom City Selector */}
             <Listbox value={selectedCity} onChange={setSelectedCity}>
-              <div className="relative mt-2 w-64">
+              <div className="relative mt-2 w-full max-w-xs sm:max-w-sm">
                 <Listbox.Button className="relative w-full cursor-pointer bg-gray-700 text-white py-2 pl-4 pr-10 text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
                   <span className="block truncate">{selectedCity || 'Pilih Kota'}</span>
- <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-   <ChevronUpDownIcon className="h-5 w-5 text-gray-300" />
- </span>
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <ChevronUpDownIcon className="h-5 w-5 text-gray-300" />
+                  </span>
                 </Listbox.Button>
 
                 <Transition
