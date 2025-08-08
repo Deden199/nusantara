@@ -16,7 +16,10 @@ export default function Home() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const socket = socketIO(import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000');
+    const apiOrigin = import.meta.env.VITE_API_URL
+      ? new URL(import.meta.env.VITE_API_URL).origin
+      : undefined;
+    const socket = socketIO(import.meta.env.VITE_SOCKET_URL || apiOrigin);
     socket.on('resultUpdated', async ({ city }) => {
       try {
         const latest = await fetchLatest(city);
