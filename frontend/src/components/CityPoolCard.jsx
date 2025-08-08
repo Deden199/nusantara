@@ -13,26 +13,23 @@ export default function CityPoolCard({
     return () => setMounted(false);
   }, [drawDate, firstPrize, secondPrize, thirdPrize]);
 
-  // Pisahkan tanggal dan waktu dari ISO string
-  const raw = drawDate || '';
-  const [datePart = '', timeWithOffset = ''] = raw.split('T');
-  const timePart = timeWithOffset.split(/[.Z]/)[0] || '';
-
-  // Format tanggal tanpa konversi zona (asumsikan datePart sudah dalam WIB)
+  // Ambil tanggal dan waktu dalam zona Asia/Jakarta
   let formattedDate = '-';
-  if (datePart) {
-    const [year, month, day] = datePart.split('-');
-    const dt = new Date(+year, +month - 1, +day);
+  let formattedTime = '-';
+  if (drawDate) {
+    const dt = new Date(drawDate);
+    const [, timeStr] = dt
+      .toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+      .split(', ');
     formattedDate = dt.toLocaleDateString('id-ID', {
+      timeZone: 'Asia/Jakarta',
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
+    formattedTime = timeStr ? timeStr.slice(0, 5) : '-';
   }
-
-  // Tampilkan jam:menit persis dari input
-  const formattedTime = timePart ? timePart.slice(0, 5) : '-';
 
   // Fungsi render bola dengan animasi
   const renderBalls = (nums) =>
