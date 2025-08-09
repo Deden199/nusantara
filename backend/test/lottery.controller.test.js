@@ -6,9 +6,11 @@ function loadController(mockPrisma, mockIO = { to() { return { emit() {} }; }, e
   const dbPath = path.resolve(__dirname, '../src/config/database.js');
   const ioPath = path.resolve(__dirname, '../src/io.js');
   const ctrlPath = path.resolve(__dirname, '../src/controllers/lottery.controller.js');
+  const statePath = path.resolve(__dirname, '../src/liveDrawState.js');
   // Inject mocks into require cache before requiring controller
   require.cache[dbPath] = { exports: mockPrisma };
   require.cache[ioPath] = { exports: { getIO: () => mockIO } };
+  require(statePath).activeLiveDraws.clear();
   delete require.cache[ctrlPath];
   return require(ctrlPath);
 }

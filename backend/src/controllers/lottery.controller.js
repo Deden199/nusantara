@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const { getIO } = require('../io');
+const { activeLiveDraws } = require('../liveDrawState');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
@@ -9,8 +10,6 @@ const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
 // track timers for result expiration per city
 const resultExpireTimers = new Map();
-// track cities that currently have an active live draw
-const activeLiveDraws = new Set();
 
 function computeLiveMeta(schedule) {
   const now = jakartaDate();
