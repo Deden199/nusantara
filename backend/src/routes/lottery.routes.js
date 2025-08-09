@@ -8,7 +8,7 @@ router.get('/pools',               ctrl.listPools);
 router.get('/pools/latest',        ctrl.latestMany);
 router.get('/pools/:city/latest',  ctrl.latestByCity);
 router.get('/history', ctrl.listAllHistory);
-router.post('/:city/live-draw', startLiveDraw);
+router.post('/:city/live-draw', ctrl.startLiveDraw);
 
 // Admin login
 router.post('/admin/login',        ctrl.login);
