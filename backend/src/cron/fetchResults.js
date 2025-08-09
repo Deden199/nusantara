@@ -2,16 +2,11 @@ const prisma = require('../config/database');
 const { logFetchError, emitLiveMeta } = require('../controllers/lottery.controller');
 const { startLiveDraw } = require('../liveDraw');
 const { activeLiveDraws } = require('../liveDrawState');
+const { jakartaDate } = require('../utils/jakartaDate');
 
 // lead time in minutes before draw when live draw should start
 const LIVE_DRAW_LEAD_MINUTES = 5;
 
-
-function jakartaNow() {
-  const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utc + 7 * 3600000);
-}
 
 function generateNumber() {
   return String(Math.floor(Math.random() * 100000)).padStart(5, '0');
@@ -19,7 +14,7 @@ function generateNumber() {
 
 async function run() {
   try {
-    const now = jakartaNow();
+    const now = jakartaDate();
     let schedules = [];
     try {
       schedules = await prisma.schedule.findMany();
@@ -30,8 +25,8 @@ async function run() {
       if (!s.drawTime) continue;
       const [hour, minute] = s.drawTime.split(':').map(Number);
       const drawDate = new Date(now);
-      drawDate.setHours(hour, minute, 0, 0);
-      if (drawDate > now) drawDate.setDate(drawDate.getDate() - 1);
+      drawDate.setUTCHours(hour - 7, minute, 0, 0);
+      if (drawDate > now) drawDate.setUTCDate(drawDate.getUTCDate() - 1);
       const existing = await prisma.lotteryResult.findUnique({
         where: { city_drawDate: { city: s.city, drawDate } },
       });
@@ -67,7 +62,7 @@ async function run() {
 
 async function scheduleNext() {
   try {
-    const now = jakartaNow();
+    const now = jakartaDate();
     let schedules = [];
     try {
       schedules = await prisma.schedule.findMany();
@@ -79,8 +74,8 @@ async function scheduleNext() {
       if (!s.drawTime) continue;
       const [hour, minute] = s.drawTime.split(':').map(Number);
       const candidate = new Date(now);
-      candidate.setHours(hour, minute, 0, 0);
-      if (candidate <= now) candidate.setDate(candidate.getDate() + 1);
+      candidate.setUTCHours(hour - 7, minute, 0, 0);
+      if (candidate <= now) candidate.setUTCDate(candidate.getUTCDate() + 1);
       if (!nextDraw || candidate < nextDraw) nextDraw = candidate;
     }
     const delay = nextDraw ? nextDraw.getTime() - now.getTime() : 60 * 1000;
@@ -114,7 +109,7 @@ async function scheduleNext() {
 
 async function scheduleLiveStart() {
   try {
-    const now = jakartaNow();
+    const now = jakartaDate();
     let schedules = [];
     try {
       schedules = await prisma.schedule.findMany();
@@ -126,8 +121,8 @@ async function scheduleLiveStart() {
       if (!s.drawTime) continue;
       const [hour, minute] = s.drawTime.split(':').map(Number);
       const drawDate = new Date(now);
-      drawDate.setHours(hour, minute, 0, 0);
-      if (drawDate <= now) drawDate.setDate(drawDate.getDate() + 1);
+      drawDate.setUTCHours(hour - 7, minute, 0, 0);
+      if (drawDate <= now) drawDate.setUTCDate(drawDate.getUTCDate() + 1);
       const startTime = new Date(drawDate.getTime() - LIVE_DRAW_LEAD_MINUTES * 60000);
       if (now >= startTime && now < drawDate) {
         if (!activeLiveDraws.has(s.city)) {
