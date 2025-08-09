@@ -310,9 +310,31 @@ export default function LiveDrawPage() {
 
   useEffect(() => {
     if (!sortedCities.length) return;
-    // pilih: live duluan, kalau tidak ada live, pilih start paling dekat
-    const best = sortedCities[0];
-    setSelectedCity(best);
+    const nowTime = new Date();
+
+    // Prioritize live city if available
+    const live = sortedCities.find((c) => c.isLive);
+    if (live) {
+      setSelectedCity(live);
+      return;
+    }
+
+    // Find city with smallest positive time difference
+    let next = null;
+    let minDiff = Infinity;
+    for (const c of sortedCities) {
+      if (!c.startsAt) continue;
+      const diff = c.startsAt - nowTime;
+      if (diff > 0 && diff < minDiff) {
+        minDiff = diff;
+        next = c;
+      }
+    }
+
+    if (next) {
+      setSelectedCity(next);
+    }
+    // If all schedules passed, keep previous/ manual selection
   }, [sortedCities]);
 
   // --- Countdown (prioritaskan Pasaran Nusantara yg mau mulai) ---
