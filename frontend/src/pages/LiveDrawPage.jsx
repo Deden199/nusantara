@@ -227,6 +227,7 @@ export default function LiveDrawPage() {
   const [history, setHistory] = useState([]);
   const socketRef = useRef(null);
   const startRequestedRef = useRef(false);
+  const selectedCityRef = useRef(null);
   const [error, setError] = useState(null);
 
   const startLiveDraw = async () => {
@@ -350,6 +351,7 @@ export default function LiveDrawPage() {
 
   useEffect(() => {
     startRequestedRef.current = false;
+    selectedCityRef.current = selectedCity;
   }, [selectedCity, nextClose]);
 
   // fetch schedule when city changes
@@ -528,22 +530,13 @@ export default function LiveDrawPage() {
       });
       setResultExpiresAt(null);
       try {
-        const list = await fetchPools();
-        setCities(Array.isArray(list) ? list : []);
-      } catch (err) {
-        console.error('Failed to reload pools', err);
-      }
-    });
-
-    socket.on('live-draw-end', async () => {
-      setPrizes({
-        first: initialBalls(),
-        second: initialBalls(),
-        third: initialBalls(),
-        currentPrize: '',
-      });
-      setResultExpiresAt(null);
-      try {
+        const city = selectedCityRef.current;
+        if (city) {
+          const cityId = city.id ?? city.name ?? city.city ?? city;
+          const latest = await fetchLatest(cityId);
+          setNextDraw(parseDate(latest.nextDraw) || null);
+          setNextClose(parseDate(latest.nextClose) || null);
+        }
         const list = await fetchPools();
         setCities(Array.isArray(list) ? list : []);
       } catch (err) {

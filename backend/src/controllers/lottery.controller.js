@@ -74,6 +74,11 @@ async function emitLiveMeta(city, scheduleOverride, justFinished = false) {
     }
 
     io.to(city).emit('liveMeta', meta);
+
+    if (justFinished) {
+      // immediately refresh meta for the upcoming schedule
+      setTimeout(() => emitLiveMeta(city).catch(() => {}), 0);
+    }
   } catch (err) {
     try {
       const io = getIO();
