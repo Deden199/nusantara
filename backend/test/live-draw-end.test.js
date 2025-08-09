@@ -29,11 +29,15 @@ const { emitLiveMeta } = require('../src/controllers/lottery.controller.js');
 
 mock.timers.enable({ apis: ['setTimeout'] });
 
-test('emits live-draw-end after result expiration', async () => {
-  await emitLiveMeta('jakarta', {});
+test('emits live-draw-end immediately after results', async () => {
+  await emitLiveMeta('jakarta', {}, true);
   assert(events.some((e) => e.event === 'liveMeta'));
+  assert(events.some((e) => e.event === 'live-draw-end'));
 
   mock.timers.tick(10 * 60 * 1000);
 
-  assert(events.some((e) => e.event === 'live-draw-end'));
+  await Promise.resolve();
+
+  // meta should be re-emitted after display period
+  assert(events.filter((e) => e.event === 'liveMeta').length >= 2);
 });
