@@ -517,22 +517,27 @@ export default function LiveDrawPage() {
     });
 
     // Unified liveMeta handler -> uses nextClose/nextDraw only
-    socket.on('liveMeta', ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
-      const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
-      const nc = parseDate(nextClose) || null;
-      setNextDraw(nd);
-      setNextClose(nc);
-      setResultExpiresAt(resultExpiresAt || null);
-      if (!resultExpiresAt) {
-        setPrizes({
-          first: initialBalls(),
-          second: initialBalls(),
-          third: initialBalls(),
-          currentPrize: '',
-        });
+    socket.on(
+      'liveMeta',
+      async ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
+        const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
+        const nc = parseDate(nextClose) || null;
+        setNextDraw(nd);
+        setNextClose(nc);
+        setResultExpiresAt(resultExpiresAt || null);
+        if (!resultExpiresAt) {
+          setPrizes({
+            first: initialBalls(),
+            second: initialBalls(),
+            third: initialBalls(),
+            currentPrize: '',
+          });
+          const list = await fetchPools();
+          setCities(Array.isArray(list) ? list : []);
+        }
+        // no direct setCountdown here; interval effect handles it from nextClose
       }
-      // no direct setCountdown here; interval effect handles it from nextClose
-    });
+    );
 
     socket.on('live-draw-end', async () => {
       setPrizes({
