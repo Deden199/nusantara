@@ -55,6 +55,21 @@ export default function LiveDrawTab({ token }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedCity) return;
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+      await fetch(`${API_URL}/admin/pools/${selectedCity}/live-draw`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMessage(`Live draw ${selectedCity} dihapus`);
+      await refreshPools();
+    } catch (err) {
+      setMessage(err.message || 'Gagal menghapus live draw');
+    }
+  };
+
   const selectedPool = pools.find(p => p.city === selectedCity);
 
   return (
@@ -89,6 +104,13 @@ export default function LiveDrawTab({ token }) {
             Stop
           </button>
         )}
+        <button
+          onClick={handleDelete}
+          disabled={!selectedCity}
+          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 disabled:opacity-50"
+        >
+          Delete
+        </button>
       </div>
     </div>
   );

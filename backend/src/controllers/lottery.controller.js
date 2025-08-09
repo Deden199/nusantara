@@ -484,6 +484,28 @@ exports.stopLiveDraw = async (req, res) => {
   res.json({ message: 'live draw stopped', city });
 };
 
+// Delete live draw data for a city and reset its state
+exports.deleteLiveDraw = async (req, res) => {
+  const { city } = req.params;
+
+  // If a live draw is active, remove it from the set
+  if (activeLiveDraws.has(city)) {
+    activeLiveDraws.delete(city);
+  }
+
+  try {
+    // Remove any override and result data tied to this city
+    await prisma.override.deleteMany({ where: { city } });
+    await prisma.lotteryResult.deleteMany({ where: { city } });
+
+    // Emit updated live metadata to clients
+    await emitLiveMeta(city);
+    res.json({ message: 'live draw deleted', city });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
 function jakartaDate(input) {
   // Return current UTC time when called without arguments
