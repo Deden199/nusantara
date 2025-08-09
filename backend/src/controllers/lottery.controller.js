@@ -55,6 +55,12 @@ async function emitLiveMeta(city, scheduleOverride) {
         city,
         setTimeout(() => {
           resultExpireTimers.delete(city);
+          try {
+            const io = getIO();
+            io.to(city).emit('live-draw-end');
+          } catch (e) {
+            // ignore socket errors
+          }
           emitLiveMeta(city).catch(() => {});
         }, 10 * 60 * 1000)
       );
