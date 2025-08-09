@@ -1,8 +1,10 @@
 /*
   Warnings:
 
-  - Added the required column `drawDate` to the `Override` table without a default value. This is not possible if the table is not empty.
+  - Added the column `drawDate` to the `Override` table without a default value.
 
 */
 -- AlterTable
-ALTER TABLE "Override" ADD COLUMN     "drawDate" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "Override" ADD COLUMN "drawDate" TIMESTAMP(3);
+UPDATE "Override" SET "drawDate" = NOW() WHERE "drawDate" IS NULL;
+ALTER TABLE "Override" ALTER COLUMN "drawDate" SET NOT NULL;
