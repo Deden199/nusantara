@@ -44,11 +44,15 @@ export default function LiveDrawTab({ token }) {
     if (!selectedCity) return;
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-      await fetch(`${API_URL}/pools/${selectedCity}/live-draw`, {
+      const res = await fetch(`${API_URL}/pools/${selectedCity}/live-draw`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMessage(`Live draw ${selectedCity} dihentikan`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Gagal menghentikan live draw');
+      }
+      setMessage(data.message || `Live draw ${selectedCity} dihentikan`);
       await refreshPools();
     } catch (err) {
       setMessage(err.message || 'Gagal menghentikan live draw');

@@ -11,6 +11,10 @@ const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 // track timers for result expiration per city
 const resultExpireTimers = new Map();
 
+// track all live draw-related timers per city so they can be cancelled
+// if a draw is stopped manually
+const liveDrawTimers = new Map();
+
 function computeLiveMeta(schedule) {
   const now = jakartaDate();
   let startsAt = null;
@@ -362,6 +366,8 @@ exports.startLiveDraw = async (req, res) => {
   }
 
   activeLiveDraws.add(city);
+  const timers = [];
+  liveDrawTimers.set(city, timers);
 
   try {
     const io = getIO();
@@ -422,19 +428,21 @@ exports.startLiveDraw = async (req, res) => {
     io.emit('resultUpdated', { city });
 
     const finalize = () => {
+      timers.forEach(clearTimeout);
+      liveDrawTimers.delete(city);
       activeLiveDraws.delete(city);
       emitLiveMeta(city).catch(() => {});
     };
 
     const drawPrize = (prizeIndex) => {
       if (prizeIndex >= prizeDefs.length) {
-        setTimeout(finalize, 10 * 60 * 1000);
+        timers.push(setTimeout(finalize, 10 * 60 * 1000));
         return;
       }
       const prize = prizeDefs[prizeIndex];
       io.to(city).emit('prizeStart', { city, prize: prize.key });
       prize.value.forEach((num, idx) => {
-        setTimeout(() => {
+        const t = setTimeout(() => {
           io.to(city).emit('drawNumber', {
             city,
             prize: prize.key,
@@ -442,9 +450,10 @@ exports.startLiveDraw = async (req, res) => {
             number: num,
           });
           if (idx === prize.value.length - 1) {
-            setTimeout(() => drawPrize(prizeIndex + 1), 60000);
+            timers.push(setTimeout(() => drawPrize(prizeIndex + 1), 60000));
           }
         }, idx * 60000);
+        timers.push(t);
       });
     };
 
@@ -453,6 +462,8 @@ exports.startLiveDraw = async (req, res) => {
 
     res.json({ message: 'live draw started', city });
   } catch (err) {
+    timers.forEach(clearTimeout);
+    liveDrawTimers.delete(city);
     activeLiveDraws.delete(city);
     console.error('[startLiveDraw] Error:', err);
     if (err.message && err.message.startsWith('invalid')) {
@@ -460,6 +471,31 @@ exports.startLiveDraw = async (req, res) => {
     }
     res.status(500).json({ error: 'internal server error' });
   }
+};
+
+// Stop an ongoing live draw and clean up any pending timers
+exports.stopLiveDraw = async (req, res) => {
+  const { city } = req.params;
+
+  if (!activeLiveDraws.has(city)) {
+    return res.status(404).json({ error: 'live draw not active' });
+  }
+
+  const timers = liveDrawTimers.get(city) || [];
+  timers.forEach((t) => clearTimeout(t));
+  liveDrawTimers.delete(city);
+  activeLiveDraws.delete(city);
+
+  try {
+    const io = getIO();
+    io.to(city).emit('liveDrawStopped', { city });
+  } catch (err) {
+    console.error('[stopLiveDraw] Error emitting event:', err);
+  }
+
+  emitLiveMeta(city).catch(() => {});
+
+  res.json({ message: 'live draw stopped', city });
 };
 
 
