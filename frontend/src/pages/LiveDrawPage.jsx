@@ -6,7 +6,7 @@ import { io as socketIO } from 'socket.io-client';
 import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { fetchPools, fetchAllHistory } from '../services/api';
+import { fetchPools, fetchAllHistory, fetchLatest } from '../services/api';
 
 const prizeLabels = {
   first: 'Hadiah Pertama',
@@ -57,10 +57,10 @@ function Ball({ rolling, value, remainingMs, totalMs }) {
         transition={{ type: 'spring', stiffness: 350, damping: 20 }}
         className={[
           // ukuran dibuat fluid dan aman di mobile
-          'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16',
+          'w-12 h-12 sm:w-16 sm:h-16',
           'flex items-center justify-center rounded-full',
           'bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold',
-          'text-lg xs:text-xl sm:text-2xl',
+          'text-lg sm:text-2xl',
           'shadow-[0_0_20px_rgba(255,255,255,0.35)] border-2 border-white',
           rolling ? 'animate-pulse' : '',
         ].join(' ')}
@@ -153,7 +153,7 @@ function PrizeBox({ k, balls, active }) {
         <div className="mt-4 sm:mt-5">
           <div
             className={[
-              'grid grid-cols-5 xs:grid-cols-5 sm:grid-cols-5 gap-3 sm:gap-4',
+              'grid grid-cols-5 sm:grid-cols-5 gap-3 sm:gap-4',
               'place-items-center',
               'px-1 sm:px-2',
             ].join(' ')}
@@ -169,7 +169,7 @@ function PrizeBox({ k, balls, active }) {
             ))}
           </div>
 
-            {/* Result line */}
+          {/* Result line */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: result ? 1 : 0.6 }}
@@ -216,8 +216,11 @@ export default function LiveDrawPage() {
     third: initialBalls(),
     currentPrize: '',
   });
-  const [nextStartAt, setNextStartAt] = useState(null);
-  const [nextCloseAt, setNextCloseAt] = useState(null);
+
+  // Unified naming: nextClose & nextDraw
+  const [nextDraw, setNextDraw] = useState(null);
+  const [nextClose, setNextClose] = useState(null);
+
   const [countdown, setCountdown] = useState('');
   const [resultExpiresAt, setResultExpiresAt] = useState(null);
   const [tickerItems, setTickerItems] = useState([]);
@@ -310,23 +313,40 @@ export default function LiveDrawPage() {
     // pilih: live duluan, kalau tidak ada live, pilih start paling dekat
     const best = sortedCities[0];
     setSelectedCity(best);
-    setNextStartAt(best.startsAt || null);
   }, [sortedCities]);
 
   // --- Countdown (prioritaskan Pasaran Nusantara yg mau mulai) ---
   useEffect(() => {
-    if (!nextStartAt) {
+    if (!nextClose) {
       setCountdown('');
       return;
     }
-    setCountdown(formatCountdown(nextStartAt));
-    const t = setInterval(() => setCountdown(formatCountdown(nextStartAt)), 1000);
+    setCountdown(formatCountdown(nextClose));
+    const t = setInterval(() => setCountdown(formatCountdown(nextClose)), 1000);
     return () => clearInterval(t);
-  }, [nextStartAt]);
+  }, [nextClose]);
 
   useEffect(() => {
     startRequestedRef.current = false;
-  }, [selectedCity, nextStartAt]);
+  }, [selectedCity, nextClose]);
+
+  // fetch schedule when city changes
+  useEffect(() => {
+    if (!selectedCity) return;
+    setNextDraw(null);
+    setNextClose(null);
+    (async () => {
+      try {
+        const cityId =
+          selectedCity.id ?? selectedCity.name ?? selectedCity.city ?? selectedCity;
+        const latest = await fetchLatest(cityId);
+        setNextDraw(parseDate(latest.nextDraw) || null);
+        setNextClose(parseDate(latest.nextClose) || null);
+      } catch (err) {
+        console.error('Failed to fetch latest schedule', err);
+      }
+    })();
+  }, [selectedCity]);
 
   // reset prizes after result expiration
   useEffect(() => {
@@ -441,11 +461,12 @@ export default function LiveDrawPage() {
       });
     });
 
+    // Unified liveMeta handler -> uses nextClose/nextDraw only
     socket.on('liveMeta', ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
-      // update meta so countdown & timers stay in sync with server schedule
-      const nextDrawDate = parseDate(nextDraw || startsAt) || null;
-      setNextStartAt(nextDrawDate);
-      setNextCloseAt(parseDate(nextClose) || null);
+      const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
+      const nc = parseDate(nextClose) || null;
+      setNextDraw(nd);
+      setNextClose(nc);
       setResultExpiresAt(resultExpiresAt || null);
       if (!resultExpiresAt) {
         setPrizes({
@@ -455,7 +476,7 @@ export default function LiveDrawPage() {
           currentPrize: '',
         });
       }
-      setCountdown(formatCountdown(nextDrawDate));
+      // no direct setCountdown here; interval effect handles it from nextClose
     });
 
     return () => socket.disconnect();
@@ -471,11 +492,12 @@ export default function LiveDrawPage() {
       currentPrize: '',
     });
     setResultExpiresAt(null);
+    setNextDraw(null);
+    setNextClose(null);
     socketRef.current.emit?.(
       'joinLive',
       selectedCity.id ?? selectedCity.name ?? selectedCity
     );
-    setNextStartAt(selectedCity.startsAt || null);
   }, [selectedCity]);
 
   const cityLabel = (c) =>
@@ -484,7 +506,7 @@ export default function LiveDrawPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-red-950 text-gray-100">
       <Header />
-        <main className="flex-1 px-4 py-6 sm:py-10">
+      <main className="flex-1 px-4 py-6 sm:py-10">
         {/* Live banner + countdown */}
         <div className="max-w-4xl mx-auto w-full">
           <motion.div
@@ -501,7 +523,7 @@ export default function LiveDrawPage() {
                 <span className="font-bold tracking-wide uppercase">Live Draw</span>
               </div>
               <div className="text-sm sm:text-base">
-                {nextStartAt ? (
+                {nextClose ? (
                   <span className="font-semibold">
                     Mulai dalam <span className="tabular-nums">{countdown}</span>
                   </span>
@@ -512,33 +534,61 @@ export default function LiveDrawPage() {
             </div>
 
             {/* progress bar countdown (visual) */}
-              {nextStartAt && (
-                <motion.div
-                  key={countdown} // re-animate per tick
-                  initial={{ width: '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 1, ease: 'linear' }}
-                  className="mt-3 h-1.5 rounded-full bg-white/30 overflow-hidden"
-                >
-                  <div className="h-full w-full"></div>
-                </motion.div>
-              )}
+            {nextClose && (
+              <motion.div
+                key={countdown} // re-animate per tick
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 1, ease: 'linear' }}
+                className="mt-3 h-1.5 rounded-full bg-white/30 overflow-hidden"
+              >
+                <div className="h-full w-full"></div>
+              </motion.div>
+            )}
 
-              {error && (
-                <div className="mt-3 text-center">
-                  <div className="text-red-100 font-semibold">{error}</div>
-                  {countdown === '00:00:00' && !prizes.currentPrize && (
-                    <button
-                      onClick={startLiveDraw}
-                      className="mt-2 px-3 py-1 text-sm rounded bg-red-800 text-white"
-                    >
-                      Retry
-                    </button>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          </div>
+            {nextClose && (
+              <p className="mt-3 text-xs sm:text-sm">
+                Tutup:{' '}
+                {nextClose.toLocaleString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZoneName: 'short',
+                  timeZone: 'Asia/Jakarta',
+                })}
+                <br />
+                Undian:{' '}
+                {nextDraw?.toLocaleString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZoneName: 'short',
+                  timeZone: 'Asia/Jakarta',
+                })}
+              </p>
+            )}
+
+            {error && (
+              <div className="mt-3 text-center">
+                <div className="text-red-100 font-semibold">{error}</div>
+                {countdown === '00:00:00' && !prizes.currentPrize && (
+                  <button
+                    onClick={startLiveDraw}
+                    className="mt-2 px-3 py-1 text-sm rounded bg-red-800 text-white"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </div>
 
         {/* City selector + next-up list */}
         <div className="max-w-4xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
