@@ -1,12 +1,11 @@
 const prisma = require('../config/database');
 const { logFetchError, emitLiveMeta } = require('../controllers/lottery.controller');
 const { startLiveDraw } = require('../liveDraw');
+const { activeLiveDraws } = require('../liveDrawState');
 
 // lead time in minutes before draw when live draw should start
 const LIVE_DRAW_LEAD_MINUTES = 5;
 
-// track cities that have an active live draw to avoid duplicates
-const activeLiveDraws = new Set();
 
 function jakartaNow() {
   const now = new Date();
