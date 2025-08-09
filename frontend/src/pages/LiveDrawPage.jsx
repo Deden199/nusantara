@@ -6,7 +6,7 @@ import { io as socketIO } from 'socket.io-client';
 import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { fetchPools } from '../services/api';
+import { fetchPools, fetchAllHistory } from '../services/api';
 
 const prizeLabels = {
   first: 'Hadiah Pertama',
@@ -198,6 +198,7 @@ export default function LiveDrawPage() {
   const [countdown, setCountdown] = useState('');
   const [resultExpiresAt, setResultExpiresAt] = useState(null);
   const [tickerItems, setTickerItems] = useState([]);
+  const [history, setHistory] = useState([]);
   const socketRef = useRef(null);
   const startRequestedRef = useRef(false);
   const [error, setError] = useState(null);
@@ -267,6 +268,18 @@ export default function LiveDrawPage() {
       }
     }
     load();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchAllHistory();
+        data.sort((a, b) => new Date(b.drawDate) - new Date(a.drawDate));
+        setHistory(data);
+      } catch (err) {
+        console.error('Failed to load history', err);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -581,6 +594,44 @@ export default function LiveDrawPage() {
           <PrizeBox k="first"  balls={prizes.first}  active={prizes.currentPrize === 'first'} />
           <PrizeBox k="second" balls={prizes.second} active={prizes.currentPrize === 'second'} />
           <PrizeBox k="third"  balls={prizes.third}  active={prizes.currentPrize === 'third'} />
+        </div>
+
+        {/* History section */}
+        <div className="max-w-4xl mx-auto w-full mt-8">
+          <h2 className="text-xl font-semibold mb-4">History</h2>
+          <div className="overflow-x-auto bg-gray-800/60 rounded-2xl">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left">
+                  <th className="px-4 py-2">Tanggal</th>
+                  <th className="px-4 py-2">Hadiah 1</th>
+                  <th className="px-4 py-2">Hadiah 2</th>
+                  <th className="px-4 py-2">Hadiah 3</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.slice(0, 10).map((h, idx) => (
+                  <tr
+                    key={idx}
+                    className={idx % 2 ? 'bg-gray-700/50' : ''}
+                  >
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      {new Date(h.drawDate).toLocaleDateString('id-ID')}
+                    </td>
+                    <td className="px-4 py-2 font-mono">
+                      {h.firstPrize || '-'}
+                    </td>
+                    <td className="px-4 py-2 font-mono">
+                      {h.secondPrize || '-'}
+                    </td>
+                    <td className="px-4 py-2 font-mono">
+                      {h.thirdPrize || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
 
