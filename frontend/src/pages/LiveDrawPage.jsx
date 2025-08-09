@@ -643,6 +643,7 @@ export default function LiveDrawPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left">
+                  <th className="px-4 py-2">Kota</th>
                   <th className="px-4 py-2">Tanggal</th>
                   <th className="px-4 py-2">Hadiah 1</th>
                   <th className="px-4 py-2">Hadiah 2</th>
@@ -655,6 +656,7 @@ export default function LiveDrawPage() {
                     key={idx}
                     className={idx % 2 ? 'bg-gray-700/50' : ''}
                   >
+                    <td className="px-4 py-2 whitespace-nowrap">{h.city}</td>
                     <td className="px-4 py-2 whitespace-nowrap">
                       {new Date(h.drawDate).toLocaleDateString('id-ID')}
                     </td>
