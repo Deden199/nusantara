@@ -7,6 +7,10 @@ const { activeLiveDraws } = require('../liveDrawState');
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+const DIGIT_INTERVAL_MS = parseInt(
+  process.env.DIGIT_INTERVAL_MS || '60000',
+  10
+);
 
 // track timers for result expiration per city
 const resultExpireTimers = new Map();
@@ -433,19 +437,47 @@ exports.startLiveDraw = async (req, res) => {
       }
       const prize = prizeDefs[prizeIndex];
       io.to(city).emit('prizeStart', { city, prize: prize.key });
-      prize.value.forEach((num, idx) => {
+
+      const revealDigit = (idx) => {
+        if (idx >= prize.value.length) {
+          setTimeout(() => drawPrize(prizeIndex + 1), DIGIT_INTERVAL_MS);
+          return;
+        }
+
+        let remaining = DIGIT_INTERVAL_MS;
+        io.to(city).emit('digitCountdown', {
+          city,
+          prize: prize.key,
+          index: idx,
+          remainingMs: remaining,
+          totalMs: DIGIT_INTERVAL_MS,
+        });
+
+        const tick = setInterval(() => {
+          remaining -= 1000;
+          io.to(city).emit('digitCountdown', {
+            city,
+            prize: prize.key,
+            index: idx,
+            remainingMs: Math.max(0, remaining),
+            totalMs: DIGIT_INTERVAL_MS,
+          });
+          if (remaining <= 0) clearInterval(tick);
+        }, 1000);
+
         setTimeout(() => {
+          clearInterval(tick);
           io.to(city).emit('drawNumber', {
             city,
             prize: prize.key,
             index: idx,
-            number: num,
+            number: prize.value[idx],
           });
-          if (idx === prize.value.length - 1) {
-            setTimeout(() => drawPrize(prizeIndex + 1), 60000);
-          }
-        }, idx * 60000);
-      });
+          revealDigit(idx + 1);
+        }, DIGIT_INTERVAL_MS);
+      };
+
+      revealDigit(0);
     };
 
     emitLiveMeta(city).catch(() => {});

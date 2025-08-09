@@ -29,8 +29,9 @@ function formatCountdown(target) {
 }
 
 // --- Ball component (mobile-safe, responsive, extra glow) ---
-function Ball({ rolling, value }) {
+function Ball({ rolling, value, remainingMs, totalMs }) {
   const [display, setDisplay] = useState(null);
+  const progress = totalMs ? 1 - remainingMs / totalMs : 0;
 
   useEffect(() => {
     let interval;
@@ -49,22 +50,32 @@ function Ball({ rolling, value }) {
   }, [rolling, value]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.6 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-      className={[
-        // ukuran dibuat fluid dan aman di mobile
-        'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16',
-        'flex items-center justify-center rounded-full',
-        'bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold',
-        'text-lg xs:text-xl sm:text-2xl',
-        'shadow-[0_0_20px_rgba(255,255,255,0.35)] border-2 border-white',
-        rolling ? 'animate-pulse' : '',
-      ].join(' ')}
-    >
-      {display ?? ''}
-    </motion.div>
+    <div className="w-full flex flex-col items-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.6 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 20 }}
+        className={[
+          // ukuran dibuat fluid dan aman di mobile
+          'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16',
+          'flex items-center justify-center rounded-full',
+          'bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold',
+          'text-lg xs:text-xl sm:text-2xl',
+          'shadow-[0_0_20px_rgba(255,255,255,0.35)] border-2 border-white',
+          rolling ? 'animate-pulse' : '',
+        ].join(' ')}
+      >
+        {display ?? ''}
+      </motion.div>
+      {rolling && totalMs ? (
+        <div className="mt-1 w-full h-1 bg-white/30 rounded">
+          <div
+            className="h-full bg-white rounded"
+            style={{ width: `${Math.min(1, progress) * 100}%` }}
+          ></div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -148,7 +159,13 @@ function PrizeBox({ k, balls, active }) {
             ].join(' ')}
           >
             {balls.map((ball, idx) => (
-              <Ball key={idx} rolling={ball.rolling} value={ball.value} />
+              <Ball
+                key={idx}
+                rolling={ball.rolling}
+                value={ball.value}
+                remainingMs={ball.remainingMs}
+                totalMs={ball.totalMs}
+              />
             ))}
           </div>
 
@@ -187,7 +204,12 @@ export default function LiveDrawPage() {
   const [cities, setCities] = useState([]);
   const [selectedCity, setSelectedCity] = useState(null);
   const initialBalls = () =>
-    Array.from({ length: 5 }, () => ({ value: null, rolling: false }));
+    Array.from({ length: 5 }, () => ({
+      value: null,
+      rolling: false,
+      remainingMs: 0,
+      totalMs: 0,
+    }));
   const [prizes, setPrizes] = useState({
     first: initialBalls(),
     second: initialBalls(),
@@ -341,7 +363,12 @@ export default function LiveDrawPage() {
       setPrizes((prev) => {
         const updated = { ...prev, currentPrize: prize };
         // all balls start rolling until numbers are drawn
-        const arr = Array.from({ length: 5 }, () => ({ value: null, rolling: true }));
+        const arr = Array.from({ length: 5 }, () => ({
+          value: null,
+          rolling: true,
+          remainingMs: 0,
+          totalMs: 0,
+        }));
         updated[prize] = arr;
         return updated;
       });
@@ -351,7 +378,7 @@ export default function LiveDrawPage() {
       setPrizes((prev) => {
         const updated = { ...prev };
         const arr = prev[p].map((b) => ({ ...b }));
-        arr[index] = { value: number, rolling: false };
+        arr[index] = { value: number, rolling: false, remainingMs: 0, totalMs: 0 };
         updated[p] = arr;
         return updated;
       });
@@ -360,6 +387,19 @@ export default function LiveDrawPage() {
         { ts: Date.now(), label: `#${index + 1}: ${number}` },
         ...t.slice(0, 9),
       ]);
+    });
+
+    socket.on('digitCountdown', ({ prize: p, index, remainingMs, totalMs }) => {
+      setPrizes((prev) => {
+        const updated = { ...prev };
+        const arr = prev[p].map((b) => ({ ...b }));
+        if (arr[index]) {
+          arr[index].remainingMs = remainingMs;
+          arr[index].totalMs = totalMs;
+        }
+        updated[p] = arr;
+        return updated;
+      });
     });
 
     socket.on('liveMeta', ({ isLive, startsAt, resultExpiresAt }) => {
