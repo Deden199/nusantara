@@ -435,6 +435,19 @@ export default function LiveDrawPage() {
     const socket = socketIO(import.meta.env.VITE_SOCKET_URL || apiOrigin);
     socketRef.current = socket;
 
+    socket.on('connect', async () => {
+      const city = selectedCityRef.current;
+      if (city) {
+        const cityId = city.id ?? city.name ?? city.city ?? city;
+        socket.emit('joinLive', cityId);
+        const latest = await fetchLatest(cityId);
+        setNextDraw(parseDate(latest.nextDraw) || null);
+        setNextClose(parseDate(latest.nextClose) || null);
+      }
+      const list = await fetchPools();
+      setCities(Array.isArray(list) ? list : []);
+    });
+
     socket.on('prizeStart', ({ prize }) => {
       setPrizes((prev) => {
         const updated = { ...prev, currentPrize: prize };
