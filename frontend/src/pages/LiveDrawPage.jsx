@@ -57,10 +57,10 @@ function Ball({ rolling, value, remainingMs, totalMs }) {
         transition={{ type: 'spring', stiffness: 350, damping: 20 }}
         className={[
           // ukuran dibuat fluid dan aman di mobile
-          'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16',
+          'w-12 h-12 sm:w-16 sm:h-16',
           'flex items-center justify-center rounded-full',
           'bg-gradient-to-br from-amber-300 to-red-600 text-gray-900 font-extrabold',
-          'text-lg xs:text-xl sm:text-2xl',
+          'text-lg sm:text-2xl',
           'shadow-[0_0_20px_rgba(255,255,255,0.35)] border-2 border-white',
           rolling ? 'animate-pulse' : '',
         ].join(' ')}
@@ -153,7 +153,7 @@ function PrizeBox({ k, balls, active }) {
         <div className="mt-4 sm:mt-5">
           <div
             className={[
-              'grid grid-cols-5 xs:grid-cols-5 sm:grid-cols-5 gap-3 sm:gap-4',
+              'grid grid-cols-5 sm:grid-cols-5 gap-3 sm:gap-4',
               'place-items-center',
               'px-1 sm:px-2',
             ].join(' ')}
@@ -169,7 +169,7 @@ function PrizeBox({ k, balls, active }) {
             ))}
           </div>
 
-            {/* Result line */}
+          {/* Result line */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: result ? 1 : 0.6 }}
@@ -216,8 +216,11 @@ export default function LiveDrawPage() {
     third: initialBalls(),
     currentPrize: '',
   });
+
+  // Unified naming: nextClose & nextDraw
   const [nextDraw, setNextDraw] = useState(null);
   const [nextClose, setNextClose] = useState(null);
+
   const [countdown, setCountdown] = useState('');
   const [resultExpiresAt, setResultExpiresAt] = useState(null);
   const [tickerItems, setTickerItems] = useState([]);
@@ -458,10 +461,12 @@ export default function LiveDrawPage() {
       });
     });
 
-    socket.on('liveMeta', ({ isLive, nextClose: nc, nextDraw: nd, startsAt, resultExpiresAt }) => {
-      // server optional: update meta agar countdown relevan
-      setNextClose(parseDate(nc || startsAt) || null);
-      setNextDraw(parseDate(nd) || null);
+    // Unified liveMeta handler -> uses nextClose/nextDraw only
+    socket.on('liveMeta', ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
+      const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
+      const nc = parseDate(nextClose) || null;
+      setNextDraw(nd);
+      setNextClose(nc);
       setResultExpiresAt(resultExpiresAt || null);
       if (!resultExpiresAt) {
         setPrizes({
@@ -471,6 +476,7 @@ export default function LiveDrawPage() {
           currentPrize: '',
         });
       }
+      // no direct setCountdown here; interval effect handles it from nextClose
     });
 
     return () => socket.disconnect();
@@ -500,7 +506,7 @@ export default function LiveDrawPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-red-950 text-gray-100">
       <Header />
-        <main className="flex-1 px-4 py-6 sm:py-10">
+      <main className="flex-1 px-4 py-6 sm:py-10">
         {/* Live banner + countdown */}
         <div className="max-w-4xl mx-auto w-full">
           <motion.div
@@ -568,21 +574,21 @@ export default function LiveDrawPage() {
               </p>
             )}
 
-              {error && (
-                <div className="mt-3 text-center">
-                  <div className="text-red-100 font-semibold">{error}</div>
-                  {countdown === '00:00:00' && !prizes.currentPrize && (
-                    <button
-                      onClick={startLiveDraw}
-                      className="mt-2 px-3 py-1 text-sm rounded bg-red-800 text-white"
-                    >
-                      Retry
-                    </button>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          </div>
+            {error && (
+              <div className="mt-3 text-center">
+                <div className="text-red-100 font-semibold">{error}</div>
+                {countdown === '00:00:00' && !prizes.currentPrize && (
+                  <button
+                    onClick={startLiveDraw}
+                    className="mt-2 px-3 py-1 text-sm rounded bg-red-800 text-white"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </div>
 
         {/* City selector + next-up list */}
         <div className="max-w-4xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">

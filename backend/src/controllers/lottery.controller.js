@@ -18,6 +18,8 @@ const resultExpireTimers = new Map();
 function computeLiveMeta(schedule) {
   const now = jakartaDate();
   let startsAt = null;
+  let nextClose = null;
+  let nextDraw = null;
   let isLive = false;
 
   if (schedule && /^\d{2}:\d{2}$/.test(schedule.drawTime)) {
@@ -26,17 +28,19 @@ function computeLiveMeta(schedule) {
     drawDate.setUTCHours(drawHour - 7, drawMinute, 0, 0);
     if (drawDate <= now) drawDate.setUTCDate(drawDate.getUTCDate() + 1);
     startsAt = drawDate.toISOString();
+    nextDraw = startsAt;
 
     if (schedule.closeTime && /^\d{2}:\d{2}$/.test(schedule.closeTime)) {
       const [closeHour, closeMinute] = schedule.closeTime.split(':').map(Number);
       const closeDate = new Date(now);
       closeDate.setUTCHours(closeHour - 7, closeMinute, 0, 0);
       if (closeDate <= now) closeDate.setUTCDate(closeDate.getUTCDate() + 1);
+      nextClose = closeDate.toISOString();
       isLive = now >= closeDate && now < drawDate;
     }
   }
 
-  return { isLive, startsAt };
+  return { isLive, startsAt, nextClose, nextDraw };
 }
 
 async function emitLiveMeta(city, scheduleOverride) {
@@ -65,7 +69,13 @@ async function emitLiveMeta(city, scheduleOverride) {
   } catch (err) {
     try {
       const io = getIO();
-      io.to(city).emit('liveMeta', { isLive: false, startsAt: null, resultExpiresAt: null });
+      io.to(city).emit('liveMeta', {
+        isLive: false,
+        startsAt: null,
+        nextClose: null,
+        nextDraw: null,
+        resultExpiresAt: null,
+      });
     } catch (e) {
       // ignore
     }
