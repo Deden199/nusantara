@@ -1,10 +1,11 @@
-import { Home, PlusCircle, RefreshCcw, Calendar } from 'lucide-react';
+import { Home, PlusCircle, RefreshCcw, Calendar, PlayCircle } from 'lucide-react';
 
 const menuItems = [
   { key: 'dashboard', name: 'Dashboard', icon: Home },
   { key: 'add',       name: 'Tambah Kota', icon: PlusCircle },
   { key: 'override',  name: 'Tentukan Hasil', icon: RefreshCcw },
   { key: 'schedule',  name: 'Jadwal', icon: Calendar },
+  { key: 'live-draw', name: 'Live Draw', icon: PlayCircle },
 
 ];
 
