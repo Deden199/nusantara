@@ -212,6 +212,12 @@ export default function LiveDrawPage() {
       const res = await fetch(`${API_URL}/pools/${cityId}/live-draw`, {
         method: 'POST',
       });
+      if (res.status === 409) {
+        const data = await res.json();
+        setError(data.error || 'Failed to start live draw');
+        startRequestedRef.current = false; // allow retry
+        return;
+      }
       if (!res.ok) throw new Error('Failed to start live draw');
     } catch (err) {
       setError(err.message);
