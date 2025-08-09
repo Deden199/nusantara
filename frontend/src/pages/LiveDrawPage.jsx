@@ -483,6 +483,22 @@ export default function LiveDrawPage() {
       // no direct setCountdown here; interval effect handles it from nextClose
     });
 
+    socket.on('live-draw-end', async () => {
+      setPrizes({
+        first: initialBalls(),
+        second: initialBalls(),
+        third: initialBalls(),
+        currentPrize: '',
+      });
+      setResultExpiresAt(null);
+      try {
+        const list = await fetchPools();
+        setCities(Array.isArray(list) ? list : []);
+      } catch (err) {
+        console.error('Failed to reload pools', err);
+      }
+    });
+
     return () => socket.disconnect();
   }, []);
 
