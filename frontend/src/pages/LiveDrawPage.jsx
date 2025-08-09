@@ -6,7 +6,7 @@ import { io as socketIO } from 'socket.io-client';
 import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { fetchPools, fetchAllHistory } from '../services/api';
+import { fetchPools, fetchAllHistory, fetchLatest } from '../services/api';
 
 const prizeLabels = {
   first: 'Hadiah Pertama',
@@ -216,7 +216,8 @@ export default function LiveDrawPage() {
     third: initialBalls(),
     currentPrize: '',
   });
-  const [nextStartAt, setNextStartAt] = useState(null);
+  const [nextDraw, setNextDraw] = useState(null);
+  const [nextClose, setNextClose] = useState(null);
   const [countdown, setCountdown] = useState('');
   const [resultExpiresAt, setResultExpiresAt] = useState(null);
   const [tickerItems, setTickerItems] = useState([]);
@@ -309,23 +310,40 @@ export default function LiveDrawPage() {
     // pilih: live duluan, kalau tidak ada live, pilih start paling dekat
     const best = sortedCities[0];
     setSelectedCity(best);
-    setNextStartAt(best.startsAt || null);
   }, [sortedCities]);
 
   // --- Countdown (prioritaskan Pasaran Nusantara yg mau mulai) ---
   useEffect(() => {
-    if (!nextStartAt) {
+    if (!nextClose) {
       setCountdown('');
       return;
     }
-    setCountdown(formatCountdown(nextStartAt));
-    const t = setInterval(() => setCountdown(formatCountdown(nextStartAt)), 1000);
+    setCountdown(formatCountdown(nextClose));
+    const t = setInterval(() => setCountdown(formatCountdown(nextClose)), 1000);
     return () => clearInterval(t);
-  }, [nextStartAt]);
+  }, [nextClose]);
 
   useEffect(() => {
     startRequestedRef.current = false;
-  }, [selectedCity, nextStartAt]);
+  }, [selectedCity, nextClose]);
+
+  // fetch schedule when city changes
+  useEffect(() => {
+    if (!selectedCity) return;
+    setNextDraw(null);
+    setNextClose(null);
+    (async () => {
+      try {
+        const cityId =
+          selectedCity.id ?? selectedCity.name ?? selectedCity.city ?? selectedCity;
+        const latest = await fetchLatest(cityId);
+        setNextDraw(parseDate(latest.nextDraw) || null);
+        setNextClose(parseDate(latest.nextClose) || null);
+      } catch (err) {
+        console.error('Failed to fetch latest schedule', err);
+      }
+    })();
+  }, [selectedCity]);
 
   // reset prizes after result expiration
   useEffect(() => {
@@ -440,9 +458,10 @@ export default function LiveDrawPage() {
       });
     });
 
-    socket.on('liveMeta', ({ isLive, startsAt, resultExpiresAt }) => {
+    socket.on('liveMeta', ({ isLive, nextClose: nc, nextDraw: nd, startsAt, resultExpiresAt }) => {
       // server optional: update meta agar countdown relevan
-      setNextStartAt(parseDate(startsAt) || null);
+      setNextClose(parseDate(nc || startsAt) || null);
+      setNextDraw(parseDate(nd) || null);
       setResultExpiresAt(resultExpiresAt || null);
       if (!resultExpiresAt) {
         setPrizes({
@@ -467,11 +486,12 @@ export default function LiveDrawPage() {
       currentPrize: '',
     });
     setResultExpiresAt(null);
+    setNextDraw(null);
+    setNextClose(null);
     socketRef.current.emit?.(
       'joinLive',
       selectedCity.id ?? selectedCity.name ?? selectedCity
     );
-    setNextStartAt(selectedCity.startsAt || null);
   }, [selectedCity]);
 
   const cityLabel = (c) =>
@@ -497,7 +517,7 @@ export default function LiveDrawPage() {
                 <span className="font-bold tracking-wide uppercase">Live Draw</span>
               </div>
               <div className="text-sm sm:text-base">
-                {nextStartAt ? (
+                {nextClose ? (
                   <span className="font-semibold">
                     Mulai dalam <span className="tabular-nums">{countdown}</span>
                   </span>
@@ -508,17 +528,45 @@ export default function LiveDrawPage() {
             </div>
 
             {/* progress bar countdown (visual) */}
-              {nextStartAt && (
-                <motion.div
-                  key={countdown} // re-animate per tick
-                  initial={{ width: '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 1, ease: 'linear' }}
-                  className="mt-3 h-1.5 rounded-full bg-white/30 overflow-hidden"
-                >
-                  <div className="h-full w-full"></div>
-                </motion.div>
-              )}
+            {nextClose && (
+              <motion.div
+                key={countdown} // re-animate per tick
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 1, ease: 'linear' }}
+                className="mt-3 h-1.5 rounded-full bg-white/30 overflow-hidden"
+              >
+                <div className="h-full w-full"></div>
+              </motion.div>
+            )}
+
+            {nextClose && (
+              <p className="mt-3 text-xs sm:text-sm">
+                Tutup:{' '}
+                {nextClose.toLocaleString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZoneName: 'short',
+                  timeZone: 'Asia/Jakarta',
+                })}
+                <br />
+                Undian:{' '}
+                {nextDraw?.toLocaleString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZoneName: 'short',
+                  timeZone: 'Asia/Jakarta',
+                })}
+              </p>
+            )}
 
               {error && (
                 <div className="mt-3 text-center">
