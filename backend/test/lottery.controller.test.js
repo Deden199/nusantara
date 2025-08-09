@@ -103,9 +103,9 @@ test('startLiveDraw returns 409 if city already active', async () => {
       {
         params: { city: 'jakarta' },
         body: {
-          firstPrize: '123456',
-          secondPrize: '654321',
-          thirdPrize: '111111',
+          firstPrize: '12345',
+          secondPrize: '65432',
+          thirdPrize: '11111',
         },
       },
       { json() {} }
@@ -124,9 +124,9 @@ test('startLiveDraw returns 409 if city already active', async () => {
       {
         params: { city: 'jakarta' },
         body: {
-          firstPrize: '123456',
-          secondPrize: '654321',
-          thirdPrize: '111111',
+          firstPrize: '12345',
+          secondPrize: '65432',
+          thirdPrize: '11111',
         },
       },
       res
@@ -161,9 +161,9 @@ test('startLiveDraw allows new draw after completion', async () => {
       {
         params: { city: 'jakarta' },
         body: {
-          firstPrize: '123456',
-          secondPrize: '654321',
-          thirdPrize: '111111',
+          firstPrize: '12345',
+          secondPrize: '65432',
+          thirdPrize: '11111',
         },
       },
       { json() {} }
@@ -182,9 +182,9 @@ test('startLiveDraw allows new draw after completion', async () => {
       {
         params: { city: 'jakarta' },
         body: {
-          firstPrize: '222222',
-          secondPrize: '333333',
-          thirdPrize: '444444',
+          firstPrize: '22222',
+          secondPrize: '33333',
+          thirdPrize: '44444',
         },
       },
       res
@@ -235,9 +235,9 @@ test('startLiveDraw persists numbers and logs override', async () => {
       {
         params: { city: 'jakarta' },
         body: {
-          firstPrize: '123456',
-          secondPrize: '234567',
-          thirdPrize: '345678',
+          firstPrize: '12345',
+          secondPrize: '23456',
+          thirdPrize: '34567',
         },
         user: { username: 'alice' },
       },
@@ -247,14 +247,14 @@ test('startLiveDraw persists numbers and logs override', async () => {
     assert.equal(upsertArgs.length, 1);
     const upsert = upsertArgs[0];
     assert.equal(upsert.where.city_drawDate.city, 'jakarta');
-    assert.equal(upsert.update.firstPrize, '123456');
-    assert.equal(upsert.update.secondPrize, '234567');
-    assert.equal(upsert.update.thirdPrize, '345678');
+    assert.equal(upsert.update.firstPrize, '12345');
+    assert.equal(upsert.update.secondPrize, '23456');
+    assert.equal(upsert.update.thirdPrize, '34567');
 
     assert.equal(overrideArgs.length, 1);
     const override = overrideArgs[0];
     assert.equal(override.data.city, 'jakarta');
-    assert.equal(override.data.newNumbers, '123456,234567,345678');
+    assert.equal(override.data.newNumbers, '12345,23456,34567');
     assert.equal(override.data.adminUsername, 'alice');
 
     const emitted = ioEmits.find((e) => e.event === 'resultUpdated');
@@ -281,7 +281,7 @@ test('startLiveDraw returns 400 when a prize number is missing', async () => {
   await ctrl.startLiveDraw(
     {
       params: { city: 'jakarta' },
-      body: { firstPrize: '123456', secondPrize: '654321' },
+      body: { firstPrize: '12345', secondPrize: '65432' },
     },
     res
   );
@@ -306,9 +306,9 @@ test('startLiveDraw returns 400 when a prize number is invalid', async () => {
     {
       params: { city: 'jakarta' },
       body: {
-        firstPrize: '12345a',
-        secondPrize: '654321',
-        thirdPrize: '111111',
+        firstPrize: '1234a',
+        secondPrize: '65432',
+        thirdPrize: '11111',
       },
     },
     res

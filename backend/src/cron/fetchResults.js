@@ -14,7 +14,7 @@ function jakartaNow() {
 }
 
 function generateNumber() {
-  return String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+  return String(Math.floor(Math.random() * 100000)).padStart(5, '0');
 }
 
 async function run() {
