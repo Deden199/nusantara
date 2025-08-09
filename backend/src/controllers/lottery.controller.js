@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const { getIO } = require('../io');
 const { activeLiveDraws } = require('../liveDrawState');
+const { jakartaDate } = require('../utils/jakartaDate');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
@@ -561,24 +562,6 @@ exports.deleteLiveDraw = async (req, res) => {
   }
 };
 
-
-function jakartaDate(input) {
-  // Return current UTC time when called without arguments
-  if (!input) {
-    return new Date();
-  }
-
-  // input dari <input type="datetime-local"> seperti "2025-07-21T04:55"
-  const [datePart, timePart] = (input || '').split('T');
-  // jika format tidak sesuai, fallback ke waktu saat ini
-  if (!datePart || !timePart) return new Date();
-
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [hour, minute] = timePart.split(':').map(Number);
-
-  // Convert Jakarta (UTC+7) time to UTC
-  return new Date(Date.UTC(year, month - 1, day, hour - 7, minute));
-}
 
 exports.login = async (req, res) => {
   const { username, password } = req.body;
