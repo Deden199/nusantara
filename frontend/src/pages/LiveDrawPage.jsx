@@ -312,7 +312,7 @@ export default function LiveDrawPage() {
     setNextStartAt(best.startsAt || null);
   }, [sortedCities]);
 
-  // --- Countdown (prioritaskan kota yg mau mulai) ---
+  // --- Countdown (prioritaskan Pasaran Nusantara yg mau mulai) ---
   useEffect(() => {
     if (!nextStartAt) {
       setCountdown('');
@@ -450,7 +450,7 @@ export default function LiveDrawPage() {
   }, [selectedCity]);
 
   const cityLabel = (c) =>
-    c?.name || c?.city || (typeof c === 'string' ? c : '') || 'Pilih Kota';
+    c?.name || c?.city || (typeof c === 'string' ? c : '') || 'Pilih Pasaran Nusantara';
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-red-950 via-red-900 to-red-950 text-gray-100">
@@ -518,7 +518,7 @@ export default function LiveDrawPage() {
             animate={{ x: 0, opacity: 1 }}
             className="lg:col-span-2 rounded-2xl p-4 sm:p-5 bg-gray-800/60 backdrop-blur"
           >
-            <div className="mb-3 text-sm opacity-80">Pilih Kota / Pool</div>
+            <div className="mb-3 text-sm opacity-80">Pilih Pasaran Nusantara / Pool</div>
             <Listbox value={selectedCity} onChange={setSelectedCity}>
               <div className="relative">
                 <Listbox.Button className="relative w-full cursor-pointer bg-gray-700 text-white py-2.5 pl-4 pr-10 text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
@@ -643,7 +643,7 @@ export default function LiveDrawPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left">
-                  <th className="px-4 py-2">Kota</th>
+                  <th className="px-4 py-2">Pasaran Nusantara</th>
                   <th className="px-4 py-2">Tanggal</th>
                   <th className="px-4 py-2">Hadiah 1</th>
                   <th className="px-4 py-2">Hadiah 2</th>
