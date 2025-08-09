@@ -217,6 +217,7 @@ export default function LiveDrawPage() {
     currentPrize: '',
   });
   const [nextStartAt, setNextStartAt] = useState(null);
+  const [nextCloseAt, setNextCloseAt] = useState(null);
   const [countdown, setCountdown] = useState('');
   const [resultExpiresAt, setResultExpiresAt] = useState(null);
   const [tickerItems, setTickerItems] = useState([]);
@@ -440,9 +441,11 @@ export default function LiveDrawPage() {
       });
     });
 
-    socket.on('liveMeta', ({ isLive, startsAt, resultExpiresAt }) => {
-      // server optional: update meta agar countdown relevan
-      setNextStartAt(parseDate(startsAt) || null);
+    socket.on('liveMeta', ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
+      // update meta so countdown & timers stay in sync with server schedule
+      const nextDrawDate = parseDate(nextDraw || startsAt) || null;
+      setNextStartAt(nextDrawDate);
+      setNextCloseAt(parseDate(nextClose) || null);
       setResultExpiresAt(resultExpiresAt || null);
       if (!resultExpiresAt) {
         setPrizes({
@@ -452,6 +455,7 @@ export default function LiveDrawPage() {
           currentPrize: '',
         });
       }
+      setCountdown(formatCountdown(nextDrawDate));
     });
 
     return () => socket.disconnect();

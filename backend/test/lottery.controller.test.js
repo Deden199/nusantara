@@ -165,3 +165,49 @@ test('startLiveDraw returns 400 when override result missing', async () => {
   assert.equal(status, 400);
   assert.deepEqual(body, { error: 'override result missing' });
 });
+
+test('emitLiveMeta emits nextClose and nextDraw when schedule changes', { concurrency: false }, async () => {
+  const events = [];
+  const mockIO = {
+    to() {
+      return {
+        emit(event, payload) {
+          events.push({ event, payload });
+        },
+      };
+    },
+  };
+  const ctrl = loadController({}, mockIO);
+
+  const realDate = Date;
+  // Fix current time to ensure deterministic scheduling
+  global.Date = class extends Date {
+    constructor(...args) {
+      if (args.length === 0) {
+        return new realDate('2023-01-01T00:00:00Z');
+      }
+      return new realDate(...args);
+    }
+  };
+
+  try {
+    await ctrl.emitLiveMeta('jakarta', {
+      drawTime: '08:00',
+      closeTime: '07:00',
+    });
+    await ctrl.emitLiveMeta('jakarta', {
+      drawTime: '09:00',
+      closeTime: '07:00',
+    });
+
+    assert.equal(events.length, 2);
+    const first = events[0].payload;
+    const second = events[1].payload;
+    assert.ok(first.nextClose);
+    assert.ok(first.nextDraw);
+    assert.ok(second.nextClose);
+    assert.ok(second.nextDraw);
+    } finally {
+      global.Date = realDate;
+    }
+  });
