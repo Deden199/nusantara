@@ -12,6 +12,11 @@ const DIGIT_INTERVAL_MS = parseInt(
   10
 );
 
+const RESULT_DISPLAY_MS = parseInt(
+  process.env.RESULT_DISPLAY_MS || String(10 * 60 * 1000),
+  10
+);
+
 // track timers for result expiration per city
 const resultExpireTimers = new Map();
 
@@ -43,34 +48,30 @@ function computeLiveMeta(schedule) {
   return { isLive, startsAt, nextClose, nextDraw };
 }
 
-async function emitLiveMeta(city, scheduleOverride) {
+async function emitLiveMeta(city, scheduleOverride, justFinished = false) {
   try {
     const schedule =
       scheduleOverride ||
       (await prisma.schedule.findUnique({ where: { city } }));
     const meta = computeLiveMeta(schedule);
 
-    if (!meta.isLive && scheduleOverride) {
-      // emit expiration timestamp and re-emit meta after expiry
-      meta.resultExpiresAt = Date.now() + 10 * 60 * 1000;
+    const io = getIO();
+
+    if (justFinished) {
+      meta.resultExpiresAt = Date.now() + RESULT_DISPLAY_MS;
+      io.to(city).emit('live-draw-end');
+
       const existing = resultExpireTimers.get(city);
       if (existing) clearTimeout(existing);
       resultExpireTimers.set(
         city,
         setTimeout(() => {
           resultExpireTimers.delete(city);
-          try {
-            const io = getIO();
-            io.to(city).emit('live-draw-end');
-          } catch (e) {
-            // ignore socket errors
-          }
           emitLiveMeta(city).catch(() => {});
-        }, 10 * 60 * 1000)
+        }, RESULT_DISPLAY_MS)
       );
     }
 
-    const io = getIO();
     io.to(city).emit('liveMeta', meta);
   } catch (err) {
     try {
@@ -416,7 +417,7 @@ exports.startLiveDraw = async (req, res) => {
 
     const finalize = async () => {
       activeLiveDraws.delete(city);
-      emitLiveMeta(city).catch(() => {});
+      emitLiveMeta(city, null, true).catch(() => {});
 
       try {
         const latest = await prisma.override.findFirst({
@@ -448,7 +449,7 @@ exports.startLiveDraw = async (req, res) => {
 
     const drawPrize = (prizeIndex) => {
       if (prizeIndex >= prizeDefs.length) {
-        setTimeout(finalize, 10 * 60 * 1000);
+        finalize();
         return;
       }
       const prize = prizeDefs[prizeIndex];
