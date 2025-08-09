@@ -381,6 +381,46 @@ exports.startLiveDraw = async (req, res) => {
       { key: 'third', value: digitsFrom(req.body?.thirdPrize, 'thirdPrize') },
     ];
 
+    // Join each prize's digits into a 6-digit string for persistence
+    const [firstPrize, secondPrize, thirdPrize] = prizeDefs.map((p) =>
+      p.value.join('')
+    );
+
+    const drawDate = jakartaDate();
+
+    // Fetch current numbers before update (if any)
+    const existing = await prisma.lotteryResult.findUnique({
+      where: { city_drawDate: { city, drawDate } },
+      select: { firstPrize: true, secondPrize: true, thirdPrize: true },
+    });
+
+    // Upsert the result with the new numbers
+    await prisma.lotteryResult.upsert({
+      where: { city_drawDate: { city, drawDate } },
+      update: { firstPrize, secondPrize, thirdPrize },
+      create: { city, drawDate, firstPrize, secondPrize, thirdPrize },
+    });
+
+    // Record that numbers were set via live draw
+    await prisma.override.create({
+      data: {
+        city,
+        oldNumbers:
+          [
+            existing?.firstPrize,
+            existing?.secondPrize,
+            existing?.thirdPrize,
+          ]
+            .filter(Boolean)
+            .join(','),
+        newNumbers: [firstPrize, secondPrize, thirdPrize].join(','),
+        adminUsername: req.user?.username || 'live-draw',
+      },
+    });
+
+    // Notify clients that this city's result has changed
+    io.emit('resultUpdated', { city });
+
     const finalize = () => {
       activeLiveDraws.delete(city);
       emitLiveMeta(city).catch(() => {});

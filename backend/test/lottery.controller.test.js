@@ -84,7 +84,15 @@ test('listPools returns schedule info', async () => {
 });
 
 test('startLiveDraw returns 409 if city already active', async () => {
-  const mockPrisma = {};
+  const mockPrisma = {
+    lotteryResult: {
+      findUnique: async () => null,
+      upsert: async () => ({}),
+    },
+    override: {
+      create: async () => ({}),
+    },
+  };
   const ctrl = loadController(mockPrisma);
 
   // Prevent scheduled callbacks from running so the draw stays active
@@ -131,7 +139,15 @@ test('startLiveDraw returns 409 if city already active', async () => {
 });
 
 test('startLiveDraw allows new draw after completion', async () => {
-  const mockPrisma = {};
+  const mockPrisma = {
+    lotteryResult: {
+      findUnique: async () => null,
+      upsert: async () => ({}),
+    },
+    override: {
+      create: async () => ({}),
+    },
+  };
   const ctrl = loadController(mockPrisma);
 
   // Execute timers immediately to finalize draw
@@ -175,6 +191,75 @@ test('startLiveDraw allows new draw after completion', async () => {
     );
     assert.equal(status, undefined);
     assert.deepEqual(body, { message: 'live draw started', city: 'jakarta' });
+  } finally {
+    global.setTimeout = origSetTimeout;
+  }
+});
+
+test('startLiveDraw persists numbers and logs override', async () => {
+  const upsertArgs = [];
+  const overrideArgs = [];
+  const ioEmits = [];
+  const mockPrisma = {
+    lotteryResult: {
+      findUnique: async () => null,
+      upsert: async (args) => {
+        upsertArgs.push(args);
+        return {};
+      },
+    },
+    override: {
+      create: async (args) => {
+        overrideArgs.push(args);
+        return {};
+      },
+    },
+  };
+  const mockIO = {
+    to() {
+      return { emit() {} };
+    },
+    emit(event, payload) {
+      ioEmits.push({ event, payload });
+    },
+  };
+  const ctrl = loadController(mockPrisma, mockIO);
+
+  const origSetTimeout = global.setTimeout;
+  global.setTimeout = (fn) => {
+    fn();
+    return 0;
+  };
+  try {
+    await ctrl.startLiveDraw(
+      {
+        params: { city: 'jakarta' },
+        body: {
+          firstPrize: '123456',
+          secondPrize: '234567',
+          thirdPrize: '345678',
+        },
+        user: { username: 'alice' },
+      },
+      { json() {} }
+    );
+
+    assert.equal(upsertArgs.length, 1);
+    const upsert = upsertArgs[0];
+    assert.equal(upsert.where.city_drawDate.city, 'jakarta');
+    assert.equal(upsert.update.firstPrize, '123456');
+    assert.equal(upsert.update.secondPrize, '234567');
+    assert.equal(upsert.update.thirdPrize, '345678');
+
+    assert.equal(overrideArgs.length, 1);
+    const override = overrideArgs[0];
+    assert.equal(override.data.city, 'jakarta');
+    assert.equal(override.data.newNumbers, '123456,234567,345678');
+    assert.equal(override.data.adminUsername, 'alice');
+
+    const emitted = ioEmits.find((e) => e.event === 'resultUpdated');
+    assert.ok(emitted);
+    assert.deepEqual(emitted.payload, { city: 'jakarta' });
   } finally {
     global.setTimeout = origSetTimeout;
   }
