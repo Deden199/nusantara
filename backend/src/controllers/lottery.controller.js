@@ -330,27 +330,24 @@ exports.overrideResults = async (req, res) => {
       select: { firstPrize: true, secondPrize: true, thirdPrize: true },
     });
 
-    // Upsert the result with the new numbers
-    const result = await prisma.lotteryResult.upsert({
-      where: { city_drawDate: { city, drawDate: date } },
-      update: { firstPrize, secondPrize, thirdPrize },
-      create: { city, drawDate: date, firstPrize, secondPrize, thirdPrize },
-    });
-        // Record the override action
-    await prisma.override.create({
+    // Record the override action as a draft
+    const override = await prisma.override.create({
       data: {
         city,
-        oldNumbers: [existing?.firstPrize, existing?.secondPrize, existing?.thirdPrize].filter(Boolean).join(','),
+        drawDate: date,
+        oldNumbers: [
+          existing?.firstPrize,
+          existing?.secondPrize,
+          existing?.thirdPrize,
+        ]
+          .filter(Boolean)
+          .join(','),
         newNumbers: [firstPrize, secondPrize, thirdPrize].join(','),
         adminUsername: req.user.username,
       },
     });
 
-    // Notify clients that this city's result has changed
-    const io = getIO();
-    io.emit('resultUpdated', { city });
-
-    res.json(result);
+    res.json(override);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -398,9 +395,36 @@ exports.startLiveDraw = async (req, res) => {
       { key: 'third', value: digitsFrom(thirdPrize, 'thirdPrize') },
     ];
 
-    const finalize = () => {
+    const finalize = async () => {
       activeLiveDraws.delete(city);
       emitLiveMeta(city).catch(() => {});
+
+      try {
+        const latest = await prisma.override.findFirst({
+          where: { city },
+          orderBy: { time: 'desc' },
+        });
+        if (latest && prisma.lotteryResult?.upsert) {
+          const [firstPrize, secondPrize, thirdPrize] =
+            latest.newNumbers.split(',');
+          await prisma.lotteryResult.upsert({
+            where: {
+              city_drawDate: { city, drawDate: latest.drawDate },
+            },
+            update: { firstPrize, secondPrize, thirdPrize },
+            create: {
+              city,
+              drawDate: latest.drawDate,
+              firstPrize,
+              secondPrize,
+              thirdPrize,
+            },
+          });
+          io.emit('resultUpdated', { city });
+        }
+      } catch (err) {
+        console.error('[startLiveDraw.finalize] Error committing result:', err);
+      }
     };
 
     const drawPrize = (prizeIndex) => {
