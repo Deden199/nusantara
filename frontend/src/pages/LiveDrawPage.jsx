@@ -142,7 +142,7 @@ function PrizeBox({ k, balls, active }) {
         <div className="mt-4 sm:mt-5">
           <div
             className={[
-              'grid grid-cols-6 xs:grid-cols-6 sm:grid-cols-6 gap-3 sm:gap-4',
+              'grid grid-cols-5 xs:grid-cols-5 sm:grid-cols-5 gap-3 sm:gap-4',
               'place-items-center',
               'px-1 sm:px-2',
             ].join(' ')}
