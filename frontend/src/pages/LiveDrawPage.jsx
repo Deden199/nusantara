@@ -160,7 +160,7 @@ function PrizeBox({ k, balls, active }) {
           >
             <span className="text-xs uppercase tracking-wider opacity-70">Kombinasi</span>
             <div className="text-xl sm:text-2xl font-black tabular-nums mt-1">
-              {result ? result : '— — — — — —'}
+              {result ? result : '— — — — —'}
             </div>
           </motion.div>
         </div>
@@ -187,7 +187,7 @@ export default function LiveDrawPage() {
   const [cities, setCities] = useState([]);
   const [selectedCity, setSelectedCity] = useState(null);
   const initialBalls = () =>
-    Array.from({ length: 6 }, () => ({ value: null, rolling: false }));
+    Array.from({ length: 5 }, () => ({ value: null, rolling: false }));
   const [prizes, setPrizes] = useState({
     first: initialBalls(),
     second: initialBalls(),
@@ -341,7 +341,7 @@ export default function LiveDrawPage() {
       setPrizes((prev) => {
         const updated = { ...prev, currentPrize: prize };
         // all balls start rolling until numbers are drawn
-        const arr = Array.from({ length: 6 }, () => ({ value: null, rolling: true }));
+        const arr = Array.from({ length: 5 }, () => ({ value: null, rolling: true }));
         updated[prize] = arr;
         return updated;
       });

@@ -353,7 +353,7 @@ exports.overrideResults = async (req, res) => {
 };
 
 // Orchestrate a live draw with three prize rounds.
-// Each prize consists of six digits sent sequentially via Socket.IO.
+// Each prize now consists of five digits sent sequentially via Socket.IO.
 exports.startLiveDraw = async (req, res) => {
   const { city } = req.params;
 
@@ -366,10 +366,10 @@ exports.startLiveDraw = async (req, res) => {
   try {
     const io = getIO();
 
-    // Helper to build an array of 6 digits from provided prize number.
-    // Throws an error if the input is missing or not a six-digit string.
+    // Helper to build an array of 5 digits from provided prize number.
+    // Throws an error if the input is missing or not a five-digit string.
     const digitsFrom = (src, name) => {
-      if (typeof src !== 'string' || !/^\d{6}$/.test(src)) {
+      if (typeof src !== 'string' || !/^\d{5}$/.test(src)) {
         throw new Error(`invalid ${name}`);
       }
       return src.split('').map((d) => Number(d));
@@ -381,10 +381,10 @@ exports.startLiveDraw = async (req, res) => {
       { key: 'third', value: digitsFrom(req.body?.thirdPrize, 'thirdPrize') },
     ];
 
-    // Join each prize's digits into a 6-digit string for persistence
-    const [firstPrize, secondPrize, thirdPrize] = prizeDefs.map((p) =>
-      p.value.join('')
-    );
+      // Join each prize's digits into a 5-digit string for persistence
+      const [firstPrize, secondPrize, thirdPrize] = prizeDefs.map((p) =>
+        p.value.join('')
+      );
 
     const drawDate = jakartaDate();
 
