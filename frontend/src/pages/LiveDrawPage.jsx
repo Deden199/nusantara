@@ -385,6 +385,20 @@ export default function LiveDrawPage() {
       selectedCity &&
       !startRequestedRef.current
     ) {
+      (async () => {
+        try {
+          const cityId =
+            selectedCity.id ??
+            selectedCity.name ??
+            selectedCity.city ??
+            selectedCity;
+          const latest = await fetchLatest(cityId);
+          setNextDraw(parseDate(latest.nextDraw) || null);
+          setNextClose(parseDate(latest.nextClose) || null);
+        } catch (err) {
+          console.error('Failed to refresh schedule', err);
+        }
+      })();
       startLiveDraw();
     }
   }, [countdown, prizes.currentPrize, selectedCity]);
