@@ -375,51 +375,24 @@ exports.startLiveDraw = async (req, res) => {
       return src.split('').map((d) => Number(d));
     };
 
+    // Fetch the latest override numbers for this city
+    const latestOverride = await prisma.override.findFirst({
+      where: { city },
+      orderBy: { time: 'desc' },
+    });
+
+    if (!latestOverride) {
+      throw new Error('override missing');
+    }
+
+    const [firstPrize, secondPrize, thirdPrize] =
+      latestOverride.newNumbers.split(',');
+
     const prizeDefs = [
-      { key: 'first', value: digitsFrom(req.body?.firstPrize, 'firstPrize') },
-      { key: 'second', value: digitsFrom(req.body?.secondPrize, 'secondPrize') },
-      { key: 'third', value: digitsFrom(req.body?.thirdPrize, 'thirdPrize') },
+      { key: 'first', value: digitsFrom(firstPrize, 'firstPrize') },
+      { key: 'second', value: digitsFrom(secondPrize, 'secondPrize') },
+      { key: 'third', value: digitsFrom(thirdPrize, 'thirdPrize') },
     ];
-
-      // Join each prize's digits into a 5-digit string for persistence
-      const [firstPrize, secondPrize, thirdPrize] = prizeDefs.map((p) =>
-        p.value.join('')
-      );
-
-    const drawDate = jakartaDate();
-
-    // Fetch current numbers before update (if any)
-    const existing = await prisma.lotteryResult.findUnique({
-      where: { city_drawDate: { city, drawDate } },
-      select: { firstPrize: true, secondPrize: true, thirdPrize: true },
-    });
-
-    // Upsert the result with the new numbers
-    await prisma.lotteryResult.upsert({
-      where: { city_drawDate: { city, drawDate } },
-      update: { firstPrize, secondPrize, thirdPrize },
-      create: { city, drawDate, firstPrize, secondPrize, thirdPrize },
-    });
-
-    // Record that numbers were set via live draw
-    await prisma.override.create({
-      data: {
-        city,
-        oldNumbers:
-          [
-            existing?.firstPrize,
-            existing?.secondPrize,
-            existing?.thirdPrize,
-          ]
-            .filter(Boolean)
-            .join(','),
-        newNumbers: [firstPrize, secondPrize, thirdPrize].join(','),
-        adminUsername: req.user?.username || 'live-draw',
-      },
-    });
-
-    // Notify clients that this city's result has changed
-    io.emit('resultUpdated', { city });
 
     const finalize = () => {
       activeLiveDraws.delete(city);
@@ -458,8 +431,25 @@ exports.startLiveDraw = async (req, res) => {
     if (err.message && err.message.startsWith('invalid')) {
       return res.status(400).json({ error: err.message });
     }
+    if (err.message === 'override missing') {
+      return res.status(400).json({ error: 'override result missing' });
+    }
     res.status(500).json({ error: 'internal server error' });
   }
+};
+
+exports.stopLiveDraw = async (req, res) => {
+  const { city } = req.params;
+
+  if (!activeLiveDraws.has(city)) {
+    return res.status(404).json({ error: 'no live draw in progress' });
+  }
+
+  activeLiveDraws.delete(city);
+  try {
+    await emitLiveMeta(city);
+  } catch {}
+  res.json({ message: 'live draw stopped', city });
 };
 
 

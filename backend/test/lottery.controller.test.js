@@ -85,31 +85,16 @@ test('listPools returns schedule info', async () => {
 
 test('startLiveDraw returns 409 if city already active', async () => {
   const mockPrisma = {
-    lotteryResult: {
-      findUnique: async () => null,
-      upsert: async () => ({}),
-    },
     override: {
-      create: async () => ({}),
+      findFirst: async () => ({ newNumbers: '12345,23456,34567' }),
     },
   };
   const ctrl = loadController(mockPrisma);
 
-  // Prevent scheduled callbacks from running so the draw stays active
   const origSetTimeout = global.setTimeout;
   global.setTimeout = () => 0;
   try {
-    await ctrl.startLiveDraw(
-      {
-        params: { city: 'jakarta' },
-        body: {
-          firstPrize: '12345',
-          secondPrize: '65432',
-          thirdPrize: '11111',
-        },
-      },
-      { json() {} }
-    );
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' } }, { json() {} });
     let status, body;
     const res = {
       status(code) {
@@ -120,17 +105,7 @@ test('startLiveDraw returns 409 if city already active', async () => {
         body = obj;
       },
     };
-    await ctrl.startLiveDraw(
-      {
-        params: { city: 'jakarta' },
-        body: {
-          firstPrize: '12345',
-          secondPrize: '65432',
-          thirdPrize: '11111',
-        },
-      },
-      res
-    );
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' } }, res);
     assert.equal(status, 409);
     assert.deepEqual(body, { error: 'live draw already in progress' });
   } finally {
@@ -140,34 +115,19 @@ test('startLiveDraw returns 409 if city already active', async () => {
 
 test('startLiveDraw allows new draw after completion', async () => {
   const mockPrisma = {
-    lotteryResult: {
-      findUnique: async () => null,
-      upsert: async () => ({}),
-    },
     override: {
-      create: async () => ({}),
+      findFirst: async () => ({ newNumbers: '12345,23456,34567' }),
     },
   };
   const ctrl = loadController(mockPrisma);
 
-  // Execute timers immediately to finalize draw
   const origSetTimeout = global.setTimeout;
   global.setTimeout = (fn) => {
     fn();
     return 0;
   };
   try {
-    await ctrl.startLiveDraw(
-      {
-        params: { city: 'jakarta' },
-        body: {
-          firstPrize: '12345',
-          secondPrize: '65432',
-          thirdPrize: '11111',
-        },
-      },
-      { json() {} }
-    );
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' } }, { json() {} });
     let status, body;
     const res = {
       status(code) {
@@ -178,17 +138,7 @@ test('startLiveDraw allows new draw after completion', async () => {
         body = obj;
       },
     };
-    await ctrl.startLiveDraw(
-      {
-        params: { city: 'jakarta' },
-        body: {
-          firstPrize: '22222',
-          secondPrize: '33333',
-          thirdPrize: '44444',
-        },
-      },
-      res
-    );
+    await ctrl.startLiveDraw({ params: { city: 'jakarta' } }, res);
     assert.equal(status, undefined);
     assert.deepEqual(body, { message: 'live draw started', city: 'jakarta' });
   } finally {
@@ -196,77 +146,10 @@ test('startLiveDraw allows new draw after completion', async () => {
   }
 });
 
-test('startLiveDraw persists numbers and logs override', async () => {
-  const upsertArgs = [];
-  const overrideArgs = [];
-  const ioEmits = [];
+test('startLiveDraw returns 400 when override result missing', async () => {
   const mockPrisma = {
-    lotteryResult: {
-      findUnique: async () => null,
-      upsert: async (args) => {
-        upsertArgs.push(args);
-        return {};
-      },
-    },
-    override: {
-      create: async (args) => {
-        overrideArgs.push(args);
-        return {};
-      },
-    },
+    override: { findFirst: async () => null },
   };
-  const mockIO = {
-    to() {
-      return { emit() {} };
-    },
-    emit(event, payload) {
-      ioEmits.push({ event, payload });
-    },
-  };
-  const ctrl = loadController(mockPrisma, mockIO);
-
-  const origSetTimeout = global.setTimeout;
-  global.setTimeout = (fn) => {
-    fn();
-    return 0;
-  };
-  try {
-    await ctrl.startLiveDraw(
-      {
-        params: { city: 'jakarta' },
-        body: {
-          firstPrize: '12345',
-          secondPrize: '23456',
-          thirdPrize: '34567',
-        },
-        user: { username: 'alice' },
-      },
-      { json() {} }
-    );
-
-    assert.equal(upsertArgs.length, 1);
-    const upsert = upsertArgs[0];
-    assert.equal(upsert.where.city_drawDate.city, 'jakarta');
-    assert.equal(upsert.update.firstPrize, '12345');
-    assert.equal(upsert.update.secondPrize, '23456');
-    assert.equal(upsert.update.thirdPrize, '34567');
-
-    assert.equal(overrideArgs.length, 1);
-    const override = overrideArgs[0];
-    assert.equal(override.data.city, 'jakarta');
-    assert.equal(override.data.newNumbers, '12345,23456,34567');
-    assert.equal(override.data.adminUsername, 'alice');
-
-    const emitted = ioEmits.find((e) => e.event === 'resultUpdated');
-    assert.ok(emitted);
-    assert.deepEqual(emitted.payload, { city: 'jakarta' });
-  } finally {
-    global.setTimeout = origSetTimeout;
-  }
-});
-
-test('startLiveDraw returns 400 when a prize number is missing', async () => {
-  const mockPrisma = {};
   const ctrl = loadController(mockPrisma);
   let status, body;
   const res = {
@@ -278,41 +161,7 @@ test('startLiveDraw returns 400 when a prize number is missing', async () => {
       body = obj;
     },
   };
-  await ctrl.startLiveDraw(
-    {
-      params: { city: 'jakarta' },
-      body: { firstPrize: '12345', secondPrize: '65432' },
-    },
-    res
-  );
+  await ctrl.startLiveDraw({ params: { city: 'jakarta' } }, res);
   assert.equal(status, 400);
-  assert.deepEqual(body, { error: 'invalid thirdPrize' });
-});
-
-test('startLiveDraw returns 400 when a prize number is invalid', async () => {
-  const mockPrisma = {};
-  const ctrl = loadController(mockPrisma);
-  let status, body;
-  const res = {
-    status(code) {
-      status = code;
-      return this;
-    },
-    json(obj) {
-      body = obj;
-    },
-  };
-  await ctrl.startLiveDraw(
-    {
-      params: { city: 'jakarta' },
-      body: {
-        firstPrize: '1234a',
-        secondPrize: '65432',
-        thirdPrize: '11111',
-      },
-    },
-    res
-  );
-  assert.equal(status, 400);
-  assert.deepEqual(body, { error: 'invalid firstPrize' });
+  assert.deepEqual(body, { error: 'override result missing' });
 });
