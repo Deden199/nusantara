@@ -362,7 +362,10 @@ exports.startLiveDraw = async (req, res) => {
     return res.status(409).json({ error: 'live draw already in progress' });
   }
 
-  activeLiveDraws.add(city);
+  activeLiveDraws.set(city, {
+    prize: 'first',
+    digits: { first: [], second: [], third: [] },
+  });
 
   try {
     const io = getIO();
@@ -435,6 +438,12 @@ exports.startLiveDraw = async (req, res) => {
       const prize = prizeDefs[prizeIndex];
       io.to(city).emit('prizeStart', { city, prize: prize.key });
 
+      const state = activeLiveDraws.get(city);
+      if (state) {
+        state.prize = prize.key;
+        state.digits[prize.key] = [];
+      }
+
       const revealDigit = (idx) => {
         if (idx >= prize.value.length) {
           setTimeout(() => drawPrize(prizeIndex + 1), DIGIT_INTERVAL_MS);
@@ -470,6 +479,12 @@ exports.startLiveDraw = async (req, res) => {
             index: idx,
             number: prize.value[idx],
           });
+
+          const state = activeLiveDraws.get(city);
+          if (state) {
+            state.digits[prize.key].push(prize.value[idx]);
+          }
+
           revealDigit(idx + 1);
         }, DIGIT_INTERVAL_MS);
       };

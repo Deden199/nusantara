@@ -133,7 +133,10 @@ async function scheduleLiveStart() {
         if (!activeLiveDraws.has(s.city)) {
           try {
             await startLiveDraw(s.city);
-            activeLiveDraws.add(s.city);
+            activeLiveDraws.set(s.city, {
+              prize: '',
+              digits: { first: [], second: [], third: [] },
+            });
           } catch (err) {
             console.error('[scheduleLiveStart] startLiveDraw failed:', err);
           }
