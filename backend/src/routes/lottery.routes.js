@@ -39,6 +39,7 @@ router.post('/admin/schedules', ctrl.authMiddleware, ctrl.createSchedule);
 router.put('/admin/schedules/:city', ctrl.authMiddleware, ctrl.updateSchedule);
 router.delete('/admin/schedules/:city', ctrl.authMiddleware, ctrl.deleteSchedule);
 router.delete('/admin/pools/:city', ctrl.authMiddleware, ctrl.deletePool);
+router.delete('/admin/pools/:city/live-draw', ctrl.authMiddleware, ctrl.deleteLiveDraw);
 router.get('/schedules', ctrl.publicSchedules);
 
 module.exports = router;
