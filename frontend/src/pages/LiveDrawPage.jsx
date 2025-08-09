@@ -415,6 +415,31 @@ export default function LiveDrawPage() {
       });
     });
 
+    socket.on('liveState', ({ prize, digits }) => {
+      setPrizes((prev) => {
+        const updated = { ...prev, currentPrize: prize || '' };
+        ['first', 'second', 'third'].forEach((k) => {
+          const arr = initialBalls();
+          const nums = digits?.[k] || [];
+          nums.forEach((num, idx) => {
+            arr[idx] = {
+              value: num,
+              rolling: false,
+              remainingMs: 0,
+              totalMs: 0,
+            };
+          });
+          if ((prize || '') === k) {
+            for (let i = nums.length; i < arr.length; i++) {
+              arr[i].rolling = true;
+            }
+          }
+          updated[k] = arr;
+        });
+        return updated;
+      });
+    });
+
     socket.on('liveMeta', ({ isLive, startsAt, resultExpiresAt }) => {
       // server optional: update meta agar countdown relevan
       setNextStartAt(parseDate(startsAt) || null);

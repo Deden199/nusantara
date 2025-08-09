@@ -1,4 +1,5 @@
 let ioInstance;
+const { activeLiveDraws } = require('./liveDrawState');
 
 function init(io) {
   ioInstance = io;
@@ -10,6 +11,11 @@ function init(io) {
       if (socket.currentRoom) socket.leave(socket.currentRoom);
       socket.join(city);
       socket.currentRoom = city;
+
+      const state = activeLiveDraws.get(city);
+      if (state) {
+        socket.emit('liveState', state);
+      }
     });
 
     socket.on('disconnect', () => console.log('Client disconnected', socket.id));
