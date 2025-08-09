@@ -366,19 +366,19 @@ exports.startLiveDraw = async (req, res) => {
   try {
     const io = getIO();
 
-    // Helper to build an array of 6 digits from body or random number
-    const digitsFrom = (src) => {
-      const str =
-        typeof src === 'string' && /^\d{6}$/.test(src)
-          ? src
-          : String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
-      return str.split('').map((d) => Number(d));
+    // Helper to build an array of 6 digits from provided prize number.
+    // Throws an error if the input is missing or not a six-digit string.
+    const digitsFrom = (src, name) => {
+      if (typeof src !== 'string' || !/^\d{6}$/.test(src)) {
+        throw new Error(`invalid ${name}`);
+      }
+      return src.split('').map((d) => Number(d));
     };
 
     const prizeDefs = [
-      { key: 'first', value: digitsFrom(req.body?.firstPrize) },
-      { key: 'second', value: digitsFrom(req.body?.secondPrize) },
-      { key: 'third', value: digitsFrom(req.body?.thirdPrize) },
+      { key: 'first', value: digitsFrom(req.body?.firstPrize, 'firstPrize') },
+      { key: 'second', value: digitsFrom(req.body?.secondPrize, 'secondPrize') },
+      { key: 'third', value: digitsFrom(req.body?.thirdPrize, 'thirdPrize') },
     ];
 
     // Join each prize's digits into a 6-digit string for persistence
@@ -455,6 +455,9 @@ exports.startLiveDraw = async (req, res) => {
   } catch (err) {
     activeLiveDraws.delete(city);
     console.error('[startLiveDraw] Error:', err);
+    if (err.message && err.message.startsWith('invalid')) {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: 'internal server error' });
   }
 };

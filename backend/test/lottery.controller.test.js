@@ -99,7 +99,17 @@ test('startLiveDraw returns 409 if city already active', async () => {
   const origSetTimeout = global.setTimeout;
   global.setTimeout = () => 0;
   try {
-    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, { json() {} });
+    await ctrl.startLiveDraw(
+      {
+        params: { city: 'jakarta' },
+        body: {
+          firstPrize: '123456',
+          secondPrize: '654321',
+          thirdPrize: '111111',
+        },
+      },
+      { json() {} }
+    );
     let status, body;
     const res = {
       status(code) {
@@ -110,7 +120,17 @@ test('startLiveDraw returns 409 if city already active', async () => {
         body = obj;
       },
     };
-    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, res);
+    await ctrl.startLiveDraw(
+      {
+        params: { city: 'jakarta' },
+        body: {
+          firstPrize: '123456',
+          secondPrize: '654321',
+          thirdPrize: '111111',
+        },
+      },
+      res
+    );
     assert.equal(status, 409);
     assert.deepEqual(body, { error: 'live draw already in progress' });
   } finally {
@@ -137,7 +157,17 @@ test('startLiveDraw allows new draw after completion', async () => {
     return 0;
   };
   try {
-    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, { json() {} });
+    await ctrl.startLiveDraw(
+      {
+        params: { city: 'jakarta' },
+        body: {
+          firstPrize: '123456',
+          secondPrize: '654321',
+          thirdPrize: '111111',
+        },
+      },
+      { json() {} }
+    );
     let status, body;
     const res = {
       status(code) {
@@ -148,7 +178,17 @@ test('startLiveDraw allows new draw after completion', async () => {
         body = obj;
       },
     };
-    await ctrl.startLiveDraw({ params: { city: 'jakarta' }, body: {} }, res);
+    await ctrl.startLiveDraw(
+      {
+        params: { city: 'jakarta' },
+        body: {
+          firstPrize: '222222',
+          secondPrize: '333333',
+          thirdPrize: '444444',
+        },
+      },
+      res
+    );
     assert.equal(status, undefined);
     assert.deepEqual(body, { message: 'live draw started', city: 'jakarta' });
   } finally {
@@ -223,4 +263,56 @@ test('startLiveDraw persists numbers and logs override', async () => {
   } finally {
     global.setTimeout = origSetTimeout;
   }
+});
+
+test('startLiveDraw returns 400 when a prize number is missing', async () => {
+  const mockPrisma = {};
+  const ctrl = loadController(mockPrisma);
+  let status, body;
+  const res = {
+    status(code) {
+      status = code;
+      return this;
+    },
+    json(obj) {
+      body = obj;
+    },
+  };
+  await ctrl.startLiveDraw(
+    {
+      params: { city: 'jakarta' },
+      body: { firstPrize: '123456', secondPrize: '654321' },
+    },
+    res
+  );
+  assert.equal(status, 400);
+  assert.deepEqual(body, { error: 'invalid thirdPrize' });
+});
+
+test('startLiveDraw returns 400 when a prize number is invalid', async () => {
+  const mockPrisma = {};
+  const ctrl = loadController(mockPrisma);
+  let status, body;
+  const res = {
+    status(code) {
+      status = code;
+      return this;
+    },
+    json(obj) {
+      body = obj;
+    },
+  };
+  await ctrl.startLiveDraw(
+    {
+      params: { city: 'jakarta' },
+      body: {
+        firstPrize: '12345a',
+        secondPrize: '654321',
+        thirdPrize: '111111',
+      },
+    },
+    res
+  );
+  assert.equal(status, 400);
+  assert.deepEqual(body, { error: 'invalid firstPrize' });
 });
