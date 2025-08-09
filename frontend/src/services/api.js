@@ -36,8 +36,13 @@ async function apiFetch(url, options = {}) {
 }
 
 // ===== Public =====
-export async function fetchPools() {
-  const data = await apiFetch(`${API_URL}/pools`);
+export async function fetchPools(token) {
+  const opts = token
+    ? {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    : undefined;
+  const data = await apiFetch(`${API_URL}/pools`, opts);
   return data.map((item) => ({
     city: item.city ?? item,
     startsAt: item.startsAt ?? null,

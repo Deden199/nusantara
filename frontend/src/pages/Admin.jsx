@@ -7,6 +7,7 @@ import DashboardTab from '../components/admin/DashboardTab';
 import CityTab from '../components/admin/CityTab';
 import ScheduleTab from '../components/admin/ScheduleTab';
 import OverrideTab from '../components/admin/OverrideTab';
+import LiveDrawTab from '../components/admin/LiveDrawTab';
 import {
   fetchPools,
   fetchStats,
@@ -214,6 +215,7 @@ export default function Admin() {
               handleOverride={handleOverride}
             />
           )}
+          {activeTab === 'live-draw' && <LiveDrawTab token={token} />}
         </main>
       </div>
     </div>
