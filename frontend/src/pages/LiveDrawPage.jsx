@@ -352,7 +352,7 @@ export default function LiveDrawPage() {
   useEffect(() => {
     if (!resultExpiresAt) return;
     const delay = resultExpiresAt - Date.now();
-    if (delay <= 0) {
+    const resetAndReload = () => {
       setResultExpiresAt(null);
       setPrizes({
         first: initialBalls(),
@@ -360,17 +360,21 @@ export default function LiveDrawPage() {
         third: initialBalls(),
         currentPrize: '',
       });
+      (async () => {
+        try {
+          const list = await fetchPools();
+          setCities(Array.isArray(list) ? list : []);
+        } catch (err) {
+          console.error('Failed to reload pools', err);
+        }
+      })();
+    };
+
+    if (delay <= 0) {
+      resetAndReload();
       return;
     }
-    const t = setTimeout(() => {
-      setResultExpiresAt(null);
-      setPrizes({
-        first: initialBalls(),
-        second: initialBalls(),
-        third: initialBalls(),
-        currentPrize: '',
-      });
-    }, delay);
+    const t = setTimeout(resetAndReload, delay);
     return () => clearTimeout(t);
   }, [resultExpiresAt]);
 
