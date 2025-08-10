@@ -228,6 +228,8 @@ export default function LiveDrawPage() {
   const socketRef = useRef(null);
   const startRequestedRef = useRef(false);
   const selectedCityRef = useRef(null);
+  const prizesRef = useRef(prizes);
+  const pendingScheduleRef = useRef(null);
   const [error, setError] = useState(null);
 
   const startLiveDraw = async () => {
@@ -340,6 +342,10 @@ export default function LiveDrawPage() {
 
   // --- Countdown (prioritaskan Pasaran Nusantara yg mau mulai) ---
   useEffect(() => {
+    if (prizes.currentPrize) {
+      setCountdown('Pengundian');
+      return;
+    }
     if (!nextClose) {
       setCountdown('');
       return;
@@ -347,12 +353,16 @@ export default function LiveDrawPage() {
     setCountdown(formatCountdown(nextClose));
     const t = setInterval(() => setCountdown(formatCountdown(nextClose)), 1000);
     return () => clearInterval(t);
-  }, [nextClose]);
+  }, [nextClose, prizes.currentPrize]);
 
   useEffect(() => {
     startRequestedRef.current = false;
     selectedCityRef.current = selectedCity;
   }, [selectedCity, nextClose]);
+
+  useEffect(() => {
+    prizesRef.current = prizes;
+  }, [prizes]);
 
   // fetch schedule when city changes
   useEffect(() => {
@@ -522,9 +532,14 @@ export default function LiveDrawPage() {
       async ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
         const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
         const nc = parseDate(nextClose) || null;
-        setNextDraw(nd);
-        setNextClose(nc);
         setResultExpiresAt(resultExpiresAt || null);
+        if (prizesRef.current.currentPrize) {
+          pendingScheduleRef.current = { nextClose: nc, nextDraw: nd };
+        } else {
+          pendingScheduleRef.current = null;
+          setNextDraw(nd);
+          setNextClose(nc);
+        }
         if (!resultExpiresAt) {
           setPrizes({
             first: initialBalls(),
@@ -547,14 +562,25 @@ export default function LiveDrawPage() {
         currentPrize: '',
       });
       setResultExpiresAt(null);
-      try {
-        const city = selectedCityRef.current;
-        if (city) {
-          const cityId = city.id ?? city.name ?? city.city ?? city;
-          const latest = await fetchLatest(cityId);
-          setNextDraw(parseDate(latest.nextDraw) || null);
-          setNextClose(parseDate(latest.nextClose) || null);
+      const pending = pendingScheduleRef.current;
+      if (pending) {
+        setNextClose(pending.nextClose);
+        setNextDraw(pending.nextDraw);
+        pendingScheduleRef.current = null;
+      } else {
+        try {
+          const city = selectedCityRef.current;
+          if (city) {
+            const cityId = city.id ?? city.name ?? city.city ?? city;
+            const latest = await fetchLatest(cityId);
+            setNextDraw(parseDate(latest.nextDraw) || null);
+            setNextClose(parseDate(latest.nextClose) || null);
+          }
+        } catch (err) {
+          console.error('Failed to refresh schedule', err);
         }
+      }
+      try {
         const list = await fetchPools();
         setCities(Array.isArray(list) ? list : []);
       } catch (err) {
@@ -606,7 +632,9 @@ export default function LiveDrawPage() {
                 <span className="font-bold tracking-wide uppercase">Live Draw</span>
               </div>
               <div className="text-sm sm:text-base">
-                {nextClose ? (
+                {prizes.currentPrize ? (
+                  <span className="font-semibold">Pengundian</span>
+                ) : nextClose ? (
                   <span className="font-semibold">
                     Mulai dalam <span className="tabular-nums">{countdown}</span>
                   </span>
@@ -617,7 +645,7 @@ export default function LiveDrawPage() {
             </div>
 
             {/* progress bar countdown (visual) */}
-            {nextClose && (
+            {nextClose && !prizes.currentPrize && (
               <motion.div
                 key={countdown} // re-animate per tick
                 initial={{ width: '0%' }}
