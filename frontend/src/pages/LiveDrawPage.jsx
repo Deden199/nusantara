@@ -394,6 +394,12 @@ export default function LiveDrawPage() {
         third: initialBalls(),
         currentPrize: '',
       });
+      const pending = pendingScheduleRef.current;
+      if (pending) {
+        setNextClose(pending.nextClose);
+        setNextDraw(pending.nextDraw);
+        pendingScheduleRef.current = null;
+      }
       (async () => {
         try {
           const list = await fetchPools();
@@ -533,7 +539,7 @@ export default function LiveDrawPage() {
         const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
         const nc = parseDate(nextClose) || null;
         setResultExpiresAt(resultExpiresAt || null);
-        if (prizesRef.current.currentPrize) {
+        if (prizesRef.current.currentPrize || resultExpiresAt) {
           pendingScheduleRef.current = { nextClose: nc, nextDraw: nd };
         } else {
           pendingScheduleRef.current = null;
