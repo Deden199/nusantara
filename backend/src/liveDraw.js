@@ -4,7 +4,7 @@ const { emitLiveMeta } = require('./controllers/lottery.controller');
 async function startLiveDraw(city) {
   try {
     const io = getIO();
-    io.emit('live-draw-start', { city });
+    io.to(city).emit('live-draw-start', { city });
     await emitLiveMeta(city);
     console.log(`Live draw started for ${city}`);
   } catch (err) {
