@@ -44,7 +44,7 @@ async function run() {
         }
         // end live draw once the result is processed
         activeLiveDraws.delete(s.city);
-        await emitLiveMeta(s.city, s);
+        await emitLiveMeta(s.city, s, true);
       }
     }
     console.log('Draw job executed at', now);
