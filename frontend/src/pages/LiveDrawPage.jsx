@@ -375,6 +375,26 @@ export default function LiveDrawPage() {
         const latest = await fetchLatest(cityId);
         setNextDraw(parseDate(latest.nextDraw) || null);
         setNextClose(parseDate(latest.nextClose) || null);
+        const toDigits = (v) =>
+          typeof v === 'string' || typeof v === 'number'
+            ? String(v)
+                .split('')
+                .map((d) => parseInt(d, 10))
+            : [];
+        const buildBalls = (digits) =>
+          Array.from({ length: 5 }, (_, i) => ({
+            value: digits[i] ?? null,
+            rolling: false,
+            remainingMs: 0,
+            totalMs: 0,
+          }));
+        setPrizes((prev) => ({
+          ...prev,
+          first: buildBalls(toDigits(latest.firstPrize)),
+          second: buildBalls(toDigits(latest.secondPrize)),
+          third: buildBalls(toDigits(latest.thirdPrize)),
+          currentPrize: '',
+        }));
       } catch (err) {
         console.error('Failed to fetch latest schedule', err);
       }
@@ -566,6 +586,26 @@ export default function LiveDrawPage() {
           const latest = await fetchLatest(cityId);
           setNextDraw(parseDate(latest.nextDraw) || null);
           setNextClose(parseDate(latest.nextClose) || null);
+          const toDigits = (v) =>
+            typeof v === 'string' || typeof v === 'number'
+              ? String(v)
+                  .split('')
+                  .map((d) => parseInt(d, 10))
+              : [];
+          const buildBalls = (digits) =>
+            Array.from({ length: 5 }, (_, i) => ({
+              value: digits[i] ?? null,
+              rolling: false,
+              remainingMs: 0,
+              totalMs: 0,
+            }));
+          setPrizes((prev) => ({
+            ...prev,
+            first: buildBalls(toDigits(latest.firstPrize)),
+            second: buildBalls(toDigits(latest.secondPrize)),
+            third: buildBalls(toDigits(latest.thirdPrize)),
+            currentPrize: '',
+          }));
         }
       } catch (err) {
         console.error('Failed to refresh schedule', err);
