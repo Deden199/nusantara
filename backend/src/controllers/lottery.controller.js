@@ -375,7 +375,7 @@ exports.overrideResults = async (req, res) => {
   const { city } = req.params;
   const { drawDate, firstPrize, secondPrize, thirdPrize } = req.body;
   try {
-        const date = jakartaDate(drawDate);
+    const date = jakartaDate(drawDate);
 
     // Fetch current numbers before update (if any)
     const existing = await prisma.lotteryResult.findUnique({
@@ -400,7 +400,15 @@ exports.overrideResults = async (req, res) => {
       },
     });
 
-    res.json(override);
+    const result = await prisma.lotteryResult.upsert({
+      where: { city_drawDate: { city, drawDate: date } },
+      update: { firstPrize, secondPrize, thirdPrize },
+      create: { city, drawDate: date, firstPrize, secondPrize, thirdPrize },
+    });
+
+    getIO().emit('resultUpdated', { city });
+
+    res.json({ override, result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
