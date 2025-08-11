@@ -538,13 +538,45 @@ export default function LiveDrawPage() {
     // Unified liveMeta handler -> update schedule and result expiry
     socket.on(
       'liveMeta',
-      async ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
+      async ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt, digits }) => {
         const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
         const nc = parseDate(nextClose) || null;
         setResultExpiresAt(resultExpiresAt || null);
         setNextDraw(nd);
         setNextClose(nc);
-        if (!resultExpiresAt) {
+
+        if (digits) {
+          setPrizes((prev) => {
+            const updated = { ...prev };
+            ['first', 'second', 'third'].forEach((k) => {
+              const arr = initialBalls();
+              const nums = digits?.[k] || [];
+              nums.forEach((num, idx) => {
+                arr[idx] = {
+                  value: num,
+                  rolling: false,
+                  remainingMs: 0,
+                  totalMs: 0,
+                };
+              });
+              updated[k] = arr;
+            });
+            const firstLen = digits.first?.length || 0;
+            const secondLen = digits.second?.length || 0;
+            const thirdLen = digits.third?.length || 0;
+            const cp = isLive
+              ? firstLen < 5
+                ? 'first'
+                : secondLen < 5
+                ? 'second'
+                : thirdLen < 5
+                ? 'third'
+                : ''
+              : '';
+            updated.currentPrize = cp;
+            return updated;
+          });
+        } else if (!resultExpiresAt) {
           setPrizes({
             first: initialBalls(),
             second: initialBalls(),
