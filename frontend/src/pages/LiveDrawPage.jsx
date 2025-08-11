@@ -254,6 +254,16 @@ export default function LiveDrawPage() {
     }
   };
 
+  const loadHistory = async () => {
+    try {
+      const data = await fetchAllHistory();
+      data.sort((a, b) => new Date(b.drawDate) - new Date(a.drawDate));
+      setHistory(data);
+    } catch (err) {
+      console.error('Failed to load history', err);
+    }
+  };
+
   // --- Normalize city item coming from API ({ city, startsAt, isLive }) ---
   const normalizeCity = (item) => {
     if (!item) return null;
@@ -299,15 +309,7 @@ export default function LiveDrawPage() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await fetchAllHistory();
-        data.sort((a, b) => new Date(b.drawDate) - new Date(a.drawDate));
-        setHistory(data);
-      } catch (err) {
-        console.error('Failed to load history', err);
-      }
-    })();
+    loadHistory();
   }, []);
 
   useEffect(() => {
@@ -616,7 +618,10 @@ export default function LiveDrawPage() {
       } catch (err) {
         console.error('Failed to reload pools', err);
       }
+      await loadHistory();
     });
+
+    socket.on('resultUpdated', loadHistory);
 
     return () => socket.disconnect();
   }, []);
