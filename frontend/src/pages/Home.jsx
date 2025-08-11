@@ -62,17 +62,6 @@ export default function Home() {
   const showCountdown =
     heroNextClose instanceof Date && !isNaN(heroNextClose.valueOf());
 
-  const handleCountdownComplete = async () => {
-    try {
-      const latest = await fetchLatest(cityName);
-      setResults(prev => ({ ...prev, [cityName]: latest }));
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch latest for', cityName, err);
-      setError(err.message || 'Failed to fetch latest');
-    }
-  };
-
   const heroNumbers = [
     heroData.firstPrize,
     heroData.secondPrize,
@@ -104,10 +93,7 @@ export default function Home() {
 
             {showCountdown
               ? (
-                <CountdownTimer
-                  targetDate={heroNextClose}
-                  onComplete={handleCountdownComplete}
-                />
+                <CountdownTimer targetDate={heroNextClose} />
               )
               : <div className="h-12 w-48 bg-gray-700 animate-pulse rounded-md" />
             }

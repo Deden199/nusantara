@@ -229,7 +229,6 @@ export default function LiveDrawPage() {
   const startRequestedRef = useRef(false);
   const selectedCityRef = useRef(null);
   const prizesRef = useRef(prizes);
-  const pendingScheduleRef = useRef(null);
   const [error, setError] = useState(null);
 
   const startLiveDraw = async () => {
@@ -394,14 +393,18 @@ export default function LiveDrawPage() {
         third: initialBalls(),
         currentPrize: '',
       });
-      const pending = pendingScheduleRef.current;
-      if (pending) {
-        setNextClose(pending.nextClose);
-        setNextDraw(pending.nextDraw);
-        pendingScheduleRef.current = null;
-      }
       (async () => {
         try {
+          if (selectedCityRef.current) {
+            const cityId =
+              selectedCityRef.current.id ??
+              selectedCityRef.current.name ??
+              selectedCityRef.current.city ??
+              selectedCityRef.current;
+            const latest = await fetchLatest(cityId);
+            setNextDraw(parseDate(latest.nextDraw) || null);
+            setNextClose(parseDate(latest.nextClose) || null);
+          }
           const list = await fetchPools();
           setCities(Array.isArray(list) ? list : []);
         } catch (err) {
@@ -532,20 +535,15 @@ export default function LiveDrawPage() {
       });
     });
 
-    // Unified liveMeta handler -> uses nextClose/nextDraw only
+    // Unified liveMeta handler -> update schedule and result expiry
     socket.on(
       'liveMeta',
       async ({ isLive, startsAt, nextClose, nextDraw, resultExpiresAt }) => {
         const nd = parseDate(nextDraw || startsAt) || null; // fallback to startsAt if server omits nextDraw
         const nc = parseDate(nextClose) || null;
         setResultExpiresAt(resultExpiresAt || null);
-        if (prizesRef.current.currentPrize || resultExpiresAt) {
-          pendingScheduleRef.current = { nextClose: nc, nextDraw: nd };
-        } else {
-          pendingScheduleRef.current = null;
-          setNextDraw(nd);
-          setNextClose(nc);
-        }
+        setNextDraw(nd);
+        setNextClose(nc);
         if (!resultExpiresAt) {
           setPrizes({
             first: initialBalls(),
@@ -561,30 +559,16 @@ export default function LiveDrawPage() {
     );
 
     socket.on('live-draw-end', async () => {
-      setPrizes({
-        first: initialBalls(),
-        second: initialBalls(),
-        third: initialBalls(),
-        currentPrize: '',
-      });
-      setResultExpiresAt(null);
-      const pending = pendingScheduleRef.current;
-      if (pending) {
-        setNextClose(pending.nextClose);
-        setNextDraw(pending.nextDraw);
-        pendingScheduleRef.current = null;
-      } else {
-        try {
-          const city = selectedCityRef.current;
-          if (city) {
-            const cityId = city.id ?? city.name ?? city.city ?? city;
-            const latest = await fetchLatest(cityId);
-            setNextDraw(parseDate(latest.nextDraw) || null);
-            setNextClose(parseDate(latest.nextClose) || null);
-          }
-        } catch (err) {
-          console.error('Failed to refresh schedule', err);
+      try {
+        const city = selectedCityRef.current;
+        if (city) {
+          const cityId = city.id ?? city.name ?? city.city ?? city;
+          const latest = await fetchLatest(cityId);
+          setNextDraw(parseDate(latest.nextDraw) || null);
+          setNextClose(parseDate(latest.nextClose) || null);
         }
+      } catch (err) {
+        console.error('Failed to refresh schedule', err);
       }
       try {
         const list = await fetchPools();
