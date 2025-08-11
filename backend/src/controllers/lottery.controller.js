@@ -58,6 +58,36 @@ async function emitLiveMeta(city, scheduleOverride, justFinished = false) {
 
     const io = getIO();
 
+    const state = activeLiveDraws.get(city);
+    if (state && state.digits) {
+      meta.digits = {
+        first: [...(state.digits.first || [])],
+        second: [...(state.digits.second || [])],
+        third: [...(state.digits.third || [])],
+      };
+    } else if (justFinished) {
+      try {
+        const latest = await prisma.lotteryResult.findFirst({
+          where: { city },
+          orderBy: { drawDate: 'desc' },
+          select: { firstPrize: true, secondPrize: true, thirdPrize: true },
+        });
+        if (latest) {
+          const toDigits = (str) =>
+            typeof str === 'string' && /^\d+$/.test(str)
+              ? str.split('').map((d) => Number(d))
+              : [];
+          meta.digits = {
+            first: toDigits(latest.firstPrize),
+            second: toDigits(latest.secondPrize),
+            third: toDigits(latest.thirdPrize),
+          };
+        }
+      } catch (e) {
+        // ignore fetch errors
+      }
+    }
+
     if (justFinished) {
       meta.resultExpiresAt = Date.now() + RESULT_DISPLAY_MS;
       io.to(city).emit('live-draw-end');
