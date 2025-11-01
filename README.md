@@ -1,6 +1,6 @@
 # Nusantara Full
 
-Platform hasil undian kota-kota di Indonesia.
+Platform hasil undian kota-kota di Indonesia..
 
 ## Setup
 
